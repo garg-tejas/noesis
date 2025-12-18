@@ -1,0 +1,58 @@
+import React from "react"
+
+interface BrainCircuitIconProps {
+  className?: string
+}
+
+export const BrainCircuitIcon: React.FC<BrainCircuitIconProps> = ({ className = "" }) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* Brain shape - left lobe */}
+      <path
+        d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44L2.37 16.82A2.5 2.5 0 0 1 2 15.56V8.5a2.5 2.5 0 0 1 1.5-2.3L9.5 2Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Brain shape - right lobe */}
+      <path
+        d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44L21.63 16.82A2.5 2.5 0 0 0 22 15.56V8.5a2.5 2.5 0 0 0-1.5-2.3L14.5 2Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Circuit connection nodes */}
+      <circle cx="9.5" cy="9" r="1.2" fill="currentColor" />
+      <circle cx="14.5" cy="9" r="1.2" fill="currentColor" />
+      <circle cx="8.5" cy="12.5" r="1.2" fill="currentColor" />
+      <circle cx="15.5" cy="12.5" r="1.2" fill="currentColor" />
+      <circle cx="10.5" cy="16" r="1.2" fill="currentColor" />
+      <circle cx="13.5" cy="16" r="1.2" fill="currentColor" />
+      <circle cx="12" cy="19" r="1.2" fill="currentColor" />
+      {/* Connection lines forming circuit paths */}
+      <path
+        d="M9.5 9L8.5 12.5M14.5 9L15.5 12.5M8.5 12.5L10.5 16M15.5 12.5L13.5 16M10.5 16L12 19M13.5 16L12 19"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      {/* Additional cross connections for circuit effect */}
+      <path
+        d="M9.5 9L12 11M14.5 9L12 11"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+    </svg>
+  )
+}
+
