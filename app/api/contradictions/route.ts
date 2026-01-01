@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { findContradictions } from "@/services/geminiService"
 import { appendContradictionNote } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/server"
+import { contradictionsRequestSchema } from "@/lib/validations"
 import type { KnowledgeEntry } from "@/types"
 
 export async function POST(request: NextRequest) {
@@ -16,14 +17,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { entries } = body
 
-    if (!entries || !Array.isArray(entries)) {
+    // Validate request body with Zod
+    const parseResult = contradictionsRequestSchema.safeParse(body)
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Missing or invalid entries array" },
+        { error: "Validation failed", details: parseResult.error.flatten() },
         { status: 400 }
       )
     }
+
+    const { entries } = parseResult.data
 
     const entriesMap = new Map<string, KnowledgeEntry>()
     ;(entries as KnowledgeEntry[]).forEach((entry) => {
@@ -37,9 +41,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`Found ${contradictions.length} contradictions across ${entries.length} entries`)
 
+    // Create server-side Supabase client for saving notes
+    const supabaseClient = await createClient()
+
     // Save contradiction notes to both entries involved
-    const supabase = await createClient()
-    
     for (const contradiction of contradictions) {
       const entry1 = entriesMap.get(contradiction.item1_id)
       const entry2 = entriesMap.get(contradiction.item2_id)
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
             entry2.id,
             contradiction.description,
             entry2.author,
-            supabase
+            supabaseClient
           )
 
           // Add note to entry2 about entry1
@@ -61,7 +66,7 @@ export async function POST(request: NextRequest) {
             entry1.id,
             contradiction.description,
             entry1.author,
-            supabase
+            supabaseClient
           )
 
           console.log(`Saved contradiction notes to entries ${entry1.id} and ${entry2.id}`)

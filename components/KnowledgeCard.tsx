@@ -32,7 +32,7 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { distilled } = entry
-  const isLowQuality = distilled.quality_score < 0.4
+  const isLowQuality = distilled.quality_score < 40
 
   // Auto-resize textarea
   useEffect(() => {
@@ -92,9 +92,9 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
   }
 
   const qualityColor =
-    distilled.quality_score >= 0.8
+    distilled.quality_score >= 80
       ? "bg-green-100 text-green-700 border-green-200"
-      : distilled.quality_score >= 0.5
+      : distilled.quality_score >= 50
         ? "bg-yellow-100 text-yellow-700 border-yellow-200"
         : "bg-red-100 text-red-700 border-red-200"
 
@@ -110,7 +110,7 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
         <div
           className={`flex-shrink-0 w-12 h-12 rounded-lg flex flex-col items-center justify-center border ${qualityColor}`}
         >
-          <span className="text-sm font-bold">{Math.round(distilled.quality_score * 100)}</span>
+          <span className="text-sm font-bold">{Math.round(distilled.quality_score)}</span>
           <span className="text-[10px] uppercase font-medium tracking-tighter opacity-80">Score</span>
         </div>
 

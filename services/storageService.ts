@@ -1,5 +1,6 @@
 import type { KnowledgeEntry, Contradiction } from "../types"
 import { createClient } from "@/lib/supabase/client"
+import { createClient as createServerClient } from "@/lib/supabase/server"
 
 export const saveEntry = async (entry: KnowledgeEntry): Promise<void> => {
   const supabase = createClient()
@@ -25,23 +26,60 @@ export const saveEntry = async (entry: KnowledgeEntry): Promise<void> => {
   if (error) throw error
 }
 
-export const getEntries = async (): Promise<KnowledgeEntry[]> => {
+export interface PaginationOptions {
+  page?: number
+  limit?: number
+}
+
+export interface PaginatedResult<T> {
+  data: T[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasMore: boolean
+  }
+}
+
+export const getEntries = async (
+  options: PaginationOptions = {}
+): Promise<PaginatedResult<KnowledgeEntry>> => {
+  const { page = 1, limit = 20 } = options
+  const offset = (page - 1) * limit
+
   const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) return []
+  if (!user) {
+    return {
+      data: [],
+      pagination: { page, limit, total: 0, totalPages: 0, hasMore: false },
+    }
+  }
 
+  // Get total count
+  const { count } = await supabase
+    .from("knowledge_entries")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+
+  const total = count ?? 0
+  const totalPages = Math.ceil(total / limit)
+
+  // Get paginated data
   const { data, error } = await supabase
     .from("knowledge_entries")
     .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1)
 
   if (error) throw error
 
-  return (data || []).map((row) => ({
+  const entries = (data || []).map((row) => ({
     id: row.id,
     sourceType: row.source_type,
     originalUrl: row.original_url,
@@ -52,6 +90,26 @@ export const getEntries = async (): Promise<KnowledgeEntry[]> => {
     isFavorite: row.is_favorite,
     userNotes: row.user_notes,
   }))
+
+  return {
+    data: entries,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasMore: page < totalPages,
+    },
+  }
+}
+
+/**
+ * Helper function to get all entries without pagination
+ * Useful for operations that need all entries (like contradiction detection)
+ */
+export const getAllEntries = async (): Promise<KnowledgeEntry[]> => {
+  const result = await getEntries({ page: 1, limit: 1000 })
+  return result.data
 }
 
 export const deleteEntry = async (id: string): Promise<void> => {
@@ -96,7 +154,7 @@ export const appendContradictionNote = async (
   otherEntryId: string,
   contradictionDescription: string,
   otherEntryAuthor: string,
-  supabaseClient: ReturnType<typeof createClient>
+  supabaseClient: Awaited<ReturnType<typeof createServerClient>>
 ): Promise<void> => {
   // Get current entry to check existing notes
   const { data: entry, error: fetchError } = await supabaseClient

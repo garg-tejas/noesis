@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { distillContent } from "@/services/geminiService"
-import type { SourceType } from "@/types"
+import { distillRequestSchema } from "@/lib/validations"
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,18 +14,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { rawText, sourceType } = body
 
-    if (!rawText || !sourceType) {
+    // Validate request body with Zod
+    const parseResult = distillRequestSchema.safeParse(body)
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Missing required fields: rawText and sourceType" },
+        { error: "Validation failed", details: parseResult.error.flatten() },
         { status: 400 }
       )
     }
 
+    const { rawText, sourceType } = parseResult.data
+
     const distilledData = await distillContent(
       rawText,
-      sourceType as SourceType,
+      sourceType,
       apiKey
     )
 

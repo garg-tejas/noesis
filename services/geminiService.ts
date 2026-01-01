@@ -1,6 +1,9 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { DistilledContent, SourceType, KnowledgeEntry, Contradiction } from "../types";
 
+// Model configuration - defaults can be overridden via environment variables
+const GEMINI_MODEL = process.env.NEXT_PUBLIC_GEMINI_MODEL || "gemini-2.5-flash";
+
 // Define the response schema for structured output
 const distillationSchema: Schema = {
   type: Type.OBJECT,
@@ -26,7 +29,7 @@ const distillationSchema: Schema = {
     },
     quality_score: {
       type: Type.NUMBER,
-      description: "A score from 0.0 to 1.0 indicating the density and value of the information. 1.0 is pure signal, 0.0 is pure noise.",
+      description: "A score from 0 to 100 indicating the density and value of the information. 100 is pure signal, 0 is pure noise.",
     },
   },
   required: ["core_ideas", "context", "actionables", "tags", "quality_score"],
@@ -52,7 +55,7 @@ export const distillContent = async (
     1. Discard fluff, intro/outro, ads, and generic platitudes.
     2. Extract only clean, core ideas.
     3. Generate actionable advice or profound questions based on the content.
-    4. Assign a quality score (0.0 - 1.0). Be harsh. Low effort content gets low scores.
+    4. Assign a quality score (0 - 100). Be harsh. Low effort content gets low scores.
     5. Categorize with relevant tags. Prioritize tags that align with common themes in technology, productivity, and personal development (e.g., 'Optimization', 'Mental Models', 'Career Growth', 'System Design').
 
     Return the result strictly as JSON.
@@ -60,7 +63,7 @@ export const distillContent = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: GEMINI_MODEL,
       contents: [
         { role: "user", parts: [{ text: rawText }] }
       ],
