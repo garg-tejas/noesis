@@ -36,9 +36,10 @@ const distillationSchema: Schema = {
 };
 
 export const distillContent = async (
-  rawText: string,
+  rawText: string | undefined,
   sourceType: SourceType,
-  apiKey: string
+  apiKey: string,
+  youtubeUrl?: string
 ): Promise<DistilledContent> => {
   if (!apiKey) {
     throw new Error("API Key is missing.");
@@ -61,12 +62,34 @@ export const distillContent = async (
     Return the result strictly as JSON.
   `;
 
+  // Build contents array - for YouTube, use fileData with fileUri, otherwise use text
+  const contents: Array<{ role?: string; parts: Array<{ text?: string; fileData?: { fileUri: string } }> }> = []
+
+  if (sourceType === "youtube" && youtubeUrl) {
+    // Use direct YouTube link via fileData
+    contents.push({
+      parts: [
+        {
+          fileData: {
+            fileUri: youtubeUrl,
+          },
+        },
+      ],
+    })
+  } else if (rawText) {
+    // Use text content
+    contents.push({
+      role: "user",
+      parts: [{ text: rawText }],
+    })
+  } else {
+    throw new Error("Either rawText or youtubeUrl must be provided")
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
-      contents: [
-        { role: "user", parts: [{ text: rawText }] }
-      ],
+      contents: contents,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",

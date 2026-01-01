@@ -1,4 +1,4 @@
-export type SourceType = 'twitter' | 'blog' | 'other';
+export type SourceType = 'twitter' | 'blog' | 'youtube' | 'other';
 
 export interface DistilledContent {
   core_ideas: string[];

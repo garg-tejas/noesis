@@ -8,6 +8,7 @@ import {
   Trash2,
   Twitter,
   BookOpen,
+  Youtube,
   ChevronDown,
   ChevronUp,
   Star,
@@ -124,6 +125,10 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
             {entry.sourceType === "twitter" ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">
                 <Twitter className="w-3 h-3" /> Twitter
+              </span>
+            ) : entry.sourceType === "youtube" ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600">
+                <Youtube className="w-3 h-3" /> YouTube
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-600">

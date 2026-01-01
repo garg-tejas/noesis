@@ -24,12 +24,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { rawText, sourceType } = parseResult.data
+    const { rawText, sourceType, youtubeUrl } = parseResult.data
 
     const distilledData = await distillContent(
       rawText,
       sourceType,
-      apiKey
+      apiKey,
+      youtubeUrl
     )
 
     return NextResponse.json(distilledData)

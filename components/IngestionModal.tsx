@@ -28,21 +28,30 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
     setIsProcessing(true)
 
     try {
-      if (!rawText.trim()) {
-        throw new Error("Please provide the content text. (Scraping is disabled in this demo)")
+      // For YouTube, validate URL is provided
+      if (sourceType === "youtube") {
+        if (!url.trim()) {
+          throw new Error("Please provide a YouTube URL")
+        }
+      } else {
+        // For non-YouTube sources, require raw text
+        if (!rawText.trim()) {
+          throw new Error("Please provide the content text.")
+        }
       }
 
-      // Call API route instead of direct service call
-      console.log("Starting distillation...", { sourceType, textLength: rawText.length })
-      
+      // Call API route for distillation
+      console.log("Starting distillation...", { sourceType, hasUrl: !!url, textLength: rawText?.length || 0 })
+
       const response = await fetch("/api/distill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          rawText,
+          rawText: sourceType === "youtube" ? undefined : rawText,
           sourceType,
+          youtubeUrl: sourceType === "youtube" ? url : undefined,
         }),
       })
 
@@ -59,8 +68,8 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
         id: crypto.randomUUID(),
         sourceType,
         originalUrl: url,
-        author: author || "Unknown",
-        rawText,
+        author: author || (sourceType === "youtube" ? "YouTube Video" : "Unknown"),
+        rawText: sourceType === "youtube" ? undefined : rawText,
         distilled: distilledData,
         createdAt: Date.now(),
         isFavorite: false,
@@ -85,6 +94,9 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
     onClose()
   }
 
+  const isYouTube = sourceType === "youtube"
+  const isSubmitDisabled = isProcessing || (isYouTube ? !url.trim() : !rawText.trim())
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -107,70 +119,102 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
           )}
 
           <form id="ingest-form" onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Source Type</label>
+              <div className="flex bg-gray-100 p-1 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setSourceType("twitter")}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceType === "twitter"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  Twitter / X
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSourceType("blog")}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceType === "blog" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  Blog Post
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSourceType("youtube")}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceType === "youtube" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  YouTube
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Source Type</label>
-                <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setSourceType("twitter")}
-                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
-                      sourceType === "twitter"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    Twitter / X
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSourceType("blog")}
-                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
-                      sourceType === "blog" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    Blog Post
-                  </button>
-                </div>
+              <div className={isYouTube ? "col-span-2" : ""}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {isYouTube ? "YouTube URL" : "Original URL (Optional)"}
+                  {isYouTube && <span className="text-red-500 ml-1">*</span>}
+                </label>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={isYouTube ? "https://youtube.com/watch?v=..." : "https://..."}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                  required={isYouTube}
+                />
+                {isYouTube && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    We'll process the video directly from YouTube
+                  </p>
+                )}
               </div>
 
+              {!isYouTube && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Author / Handle</label>
+                  <input
+                    type="text"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    placeholder={sourceType === "twitter" ? "@username" : "Author Name"}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+              )}
+            </div>
+
+            {isYouTube && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Author / Handle</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Channel Name (Optional)</label>
                 <input
                   type="text"
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
-                  placeholder={sourceType === "twitter" ? "@username" : "Author Name"}
+                  placeholder="Channel name"
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
                 />
               </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Original URL (Optional)</label>
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Content to Distill
-                <span className="ml-2 text-xs font-normal text-gray-400">(Paste the thread or article text here)</span>
-              </label>
-              <textarea
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                placeholder="Paste the raw text content here..."
-                rows={8}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all resize-none font-mono text-sm"
-                required
-              />
-            </div>
+            {!isYouTube && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Content to Distill
+                  <span className="ml-2 text-xs font-normal text-gray-400">(Paste the thread or article text here)</span>
+                </label>
+                <textarea
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                  placeholder="Paste the raw text content here..."
+                  rows={8}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all resize-none font-mono text-sm"
+                  required={!isYouTube}
+                />
+              </div>
+            )}
           </form>
         </div>
 
@@ -185,7 +229,7 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
           <button
             type="submit"
             form="ingest-form"
-            disabled={isProcessing || !rawText.trim()}
+            disabled={isSubmitDisabled}
             className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? (
