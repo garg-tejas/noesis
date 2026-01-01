@@ -8,7 +8,7 @@ Basically it uses AI to pull out the important bits from things I read and puts 
 
 **Content stuff**
 
-- You paste in a tweet thread or blog post
+- You paste in a tweet thread, blog post or YT link
 - AI figures out what the main ideas are
 - It scores how useful the content is (filters out fluff)
 - Auto-tags things so you can find them
@@ -57,8 +57,9 @@ Make a `.env.local` file:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-GEMINI_API_KEY=your_gemini_api_key
 NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL=http://localhost:3000
+NEXT_PUBLIC_GEMINI_MODEL=gemini-2.5-flash
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 Run the SQL files in the `scripts/` folder to set up your database.
@@ -108,7 +109,7 @@ It only compares entries that are about similar topics. So if you have two blog 
 **Adding stuff:**
 
 - Click "Distill New"
-- Pick if it's a tweet or blog post
+- Pick if it's a tweet, blog post or yt video
 - Paste the content
 - Save it
 
