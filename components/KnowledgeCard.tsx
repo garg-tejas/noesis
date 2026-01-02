@@ -94,53 +94,55 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
 
   const qualityColor =
     distilled.quality_score >= 80
-      ? "bg-green-100 text-green-700 border-green-200"
+      ? "bg-primary/20 text-primary border-primary/40"
       : distilled.quality_score >= 50
-        ? "bg-yellow-100 text-yellow-700 border-yellow-200"
-        : "bg-red-100 text-red-700 border-red-200"
+        ? "bg-accent/20 text-accent border-accent/40"
+        : "bg-destructive/20 text-destructive border-destructive/40"
 
   const isNoteMatch = searchQuery && noteText.toLowerCase().includes(searchQuery.toLowerCase())
 
   return (
     <div
-      className={`group rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col ${isLowQuality ? "border-red-200 bg-red-50/20" : "bg-white border-gray-200"}`}
+      className={`group relative bg-card border-4 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all duration-150 overflow-hidden flex flex-col ${
+        isLowQuality ? "border-destructive bg-destructive/5" : ""
+      }`}
     >
-      {/* Header */}
-      <div className="p-5 flex items-start gap-4">
-        {/* Quality Score Indicator */}
+      {/* Neo-brutalist Header */}
+      <div className="p-6 flex items-start gap-4">
+        {/* Quality Score - Bold Box */}
         <div
-          className={`flex-shrink-0 w-12 h-12 rounded-lg flex flex-col items-center justify-center border ${qualityColor}`}
+          className={`flex-shrink-0 w-16 h-16 border-3 border-foreground flex flex-col items-center justify-center ${qualityColor} font-display font-bold`}
         >
-          <span className="text-sm font-bold">{Math.round(distilled.quality_score)}</span>
-          <span className="text-[10px] uppercase font-medium tracking-tighter opacity-80">Score</span>
+          <span className="text-2xl leading-none">{Math.round(distilled.quality_score)}</span>
+          <span className="text-[9px] uppercase tracking-wider opacity-80 font-mono font-bold">SCORE</span>
         </div>
 
         <div className="flex-grow min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             {isLowQuality && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-                <AlertTriangle className="w-3 h-3" /> Low Signal
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold font-mono uppercase bg-destructive text-white border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <AlertTriangle className="w-3 h-3" /> LOW SIGNAL
               </span>
             )}
             {entry.sourceType === "twitter" ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">
-                <Twitter className="w-3 h-3" /> Twitter
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold font-mono uppercase bg-[oklch(0.6_0.24_295)] text-white border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <Twitter className="w-3 h-3" /> TWITTER
               </span>
             ) : entry.sourceType === "youtube" ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600">
-                <Youtube className="w-3 h-3" /> YouTube
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold font-mono uppercase bg-destructive text-white border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <Youtube className="w-3 h-3" /> YOUTUBE
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-600">
-                <BookOpen className="w-3 h-3" /> Blog
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold font-mono uppercase bg-secondary text-white border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <BookOpen className="w-3 h-3" /> BLOG
               </span>
             )}
-            <span className="text-xs text-gray-400 font-medium truncate">
+            <span className="text-xs text-muted-foreground font-mono font-bold uppercase tracking-wide">
               {entry.author} • {new Date(entry.createdAt).toLocaleDateString()}
             </span>
           </div>
 
-          <h3 className="text-gray-900 font-semibold leading-tight line-clamp-2 mb-2">
+          <h3 className="font-display text-xl font-bold leading-tight line-clamp-2 mb-3">
             {distilled.core_ideas[0] || "No core ideas found"}
           </h3>
 
@@ -148,27 +150,33 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
             {distilled.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full"
+                className="inline-flex items-center text-xs font-mono font-bold bg-muted px-2 py-1 border-2 border-foreground"
               >
-                <Tag className="w-3 h-3 mr-1 opacity-50" />
+                <Tag className="w-3 h-3 mr-1" />
                 {tag}
               </span>
             ))}
             {entry.userNotes && (
               <button
                 onClick={handleBadgeClick}
-                className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full transition-colors ${isNoteMatch ? "bg-amber-200 text-amber-800 border border-amber-300 ring-2 ring-amber-100" : "text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-100"}`}
+                className={`inline-flex items-center text-xs font-mono font-bold px-2 py-1 border-2 border-foreground transition-all ${
+                  isNoteMatch
+                    ? "bg-primary text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                    : "bg-accent/20 text-accent hover:bg-accent/30"
+                }`}
               >
-                <PenLine className="w-3 h-3 mr-1" /> Note added
+                <PenLine className="w-3 h-3 mr-1" /> NOTE
               </button>
             )}
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={handleFavorite}
-            className={`p-1.5 rounded-md hover:bg-gray-100 transition-colors ${entry.isFavorite ? "text-amber-400 opacity-100" : "text-gray-400"}`}
+            className={`p-2 border-2 border-foreground hover:bg-primary hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] ${
+              entry.isFavorite ? "bg-primary text-white" : "bg-card"
+            }`}
           >
             <Star className={`w-4 h-4 ${entry.isFavorite ? "fill-current" : ""}`} />
           </button>
@@ -177,109 +185,120 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
               href={entry.originalUrl}
               target="_blank"
               rel="noreferrer"
-              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-brand-600 transition-colors"
+              className="p-2 border-2 border-foreground bg-card hover:bg-secondary hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]"
             >
               <ExternalLink className="w-4 h-4" />
             </a>
           )}
           <button
             onClick={handleDelete}
-            className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+            className="p-2 border-2 border-foreground bg-card hover:bg-destructive hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]"
           >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Actionables Teaser (Always Visible if High Value) */}
+      {/* Actionables Highlight - Neo-brutalist */}
       {distilled.actionables.length > 0 && (
-        <div className="px-5 pb-4">
-          <div className="flex items-start gap-2 bg-brand-50 rounded-lg p-3 text-sm text-brand-900">
-            <Zap className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
-            <p className="line-clamp-2">{distilled.actionables[0]}</p>
+        <div className="px-6 pb-6">
+          <div className="flex items-start gap-3 bg-accent/10 border-2 border-accent/40 p-4">
+            <Zap className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-medium line-clamp-2">{distilled.actionables[0]}</p>
           </div>
         </div>
       )}
 
-      {/* Expand/Collapse Toggle */}
+      {/* Expand/Collapse Toggle - Bold */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full py-2 bg-gray-50 hover:bg-gray-100 border-t border-gray-100 flex items-center justify-center text-xs font-medium text-gray-500 transition-colors gap-1"
+        className="w-full py-3 bg-foreground text-background hover:bg-primary transition-colors border-t-4 border-foreground flex items-center justify-center font-mono text-xs font-bold uppercase tracking-wider gap-2"
       >
         {isExpanded ? (
           <>
-            Less Details <ChevronUp className="w-3 h-3" />
+            COLLAPSE <ChevronUp className="w-4 h-4" />
           </>
         ) : (
           <>
-            Full Distillation <ChevronDown className="w-3 h-3" />
+            FULL DETAILS <ChevronDown className="w-4 h-4" />
           </>
         )}
       </button>
 
-      {/* Expanded Content */}
+      {/* Expanded Content - Editorial */}
       {isExpanded && (
-        <div className="p-5 border-t border-gray-100 bg-gray-50/50 space-y-6 text-sm animate-in slide-in-from-top-2 fade-in duration-200">
-          <div className="space-y-1">
-            <h4 className="font-semibold text-gray-900 text-xs uppercase tracking-wider">Context</h4>
-            <p className="text-gray-600 leading-relaxed">{distilled.context}</p>
+        <div className="p-6 border-t-4 border-foreground bg-muted/30 space-y-6 text-sm animate-slide-in-bottom">
+          <div className="space-y-2">
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider border-b-2 border-foreground pb-1">
+              Context
+            </h4>
+            <p className="text-foreground/80 leading-relaxed">{distilled.context}</p>
           </div>
 
-          <div className="space-y-2">
-            <h4 className="font-semibold text-gray-900 text-xs uppercase tracking-wider">Core Ideas</h4>
-            <ul className="list-disc pl-4 space-y-1 text-gray-700">
+          <div className="space-y-3">
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider border-b-2 border-foreground pb-1">
+              Core Ideas
+            </h4>
+            <ul className="space-y-2">
               {distilled.core_ideas.map((idea, idx) => (
-                <li key={idx} className="pl-1 marker:text-gray-400">
-                  {idea}
+                <li key={idx} className="flex items-start gap-3 bg-card border-2 border-foreground p-3">
+                  <span className="flex items-center justify-center w-6 h-6 bg-primary text-white font-display font-bold text-sm flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  <span className="text-foreground/90">{idea}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="space-y-2">
-            <h4 className="font-semibold text-brand-800 text-xs uppercase tracking-wider flex items-center gap-1">
-              <Zap className="w-3 h-3" /> Actionables
+          <div className="space-y-3">
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider border-b-2 border-accent pb-1 text-accent flex items-center gap-2">
+              <Zap className="w-4 h-4" /> Actionables
             </h4>
-            <ul className="list-none space-y-2">
+            <ul className="space-y-2">
               {distilled.actionables.map((action, idx) => (
                 <li
                   key={idx}
-                  className="flex items-start gap-2 text-gray-800 bg-white p-2 rounded border border-gray-200 shadow-sm"
+                  className="flex items-start gap-3 bg-accent/10 border-2 border-accent/40 p-3 hover:bg-accent/20 transition-colors"
                 >
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-100 text-brand-600 text-xs font-bold flex-shrink-0">
+                  <span className="flex items-center justify-center w-6 h-6 bg-accent text-white font-display font-bold text-sm flex-shrink-0">
                     {idx + 1}
                   </span>
-                  <span>{action}</span>
+                  <span className="text-foreground/90 font-medium">{action}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* User Notes Section */}
+          {/* User Notes Section - Warm Accent */}
           <div
-            className={`space-y-2 pt-2 border-t border-gray-200 ${isNoteMatch ? "bg-amber-50/50 -mx-5 px-5 py-3" : ""}`}
+            className={`space-y-2 pt-4 border-t-4 border-foreground ${
+              isNoteMatch ? "bg-primary/10 -mx-6 px-6 py-4" : ""
+            }`}
           >
             <div className="flex items-center justify-between">
-              <h4
-                className={`font-semibold text-xs uppercase tracking-wider flex items-center gap-1 ${isNoteMatch ? "text-amber-700" : "text-amber-700"}`}
-              >
-                <PenLine className="w-3 h-3" /> My Notes
+              <h4 className="font-display font-bold text-sm uppercase tracking-wider flex items-center gap-2 text-primary">
+                <PenLine className="w-4 h-4" /> My Notes
               </h4>
-              {isNoteDirty && <span className="text-xs text-amber-600 italic animate-pulse">Unsaved changes...</span>}
+              {isNoteDirty && (
+                <span className="text-xs text-accent font-mono font-bold animate-pulse">UNSAVED</span>
+              )}
             </div>
             <div className="relative">
               <textarea
                 ref={textareaRef}
                 value={noteText}
                 onChange={handleNoteChange}
-                placeholder="Add your personal thoughts, reflections, or connections here..."
-                className={`w-full min-h-[100px] p-3 rounded-lg border bg-amber-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none text-gray-800 text-sm resize-none overflow-hidden transition-colors ${isNoteMatch ? "border-amber-300 ring-2 ring-amber-100" : "border-amber-200"}`}
+                placeholder="Add your thoughts, connections, or reflections..."
+                className={`w-full min-h-[120px] p-4 border-2 bg-card focus:bg-background focus:ring-4 focus:ring-primary/20 focus:border-primary outline-none text-sm resize-none overflow-hidden transition-all ${
+                  isNoteMatch ? "border-primary ring-4 ring-primary/20" : "border-foreground/20"
+                }`}
                 onBlur={handleSaveNote}
               />
               {isNoteDirty && (
                 <button
                   onClick={handleSaveNote}
-                  className="absolute bottom-2 right-2 p-1.5 bg-amber-500 text-white rounded-md hover:bg-amber-600 shadow-sm transition-colors"
+                  className="absolute bottom-3 right-3 p-2 bg-primary text-white border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
                   title="Save Note"
                 >
                   <Save className="w-4 h-4" />
@@ -288,9 +307,9 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
             </div>
           </div>
 
-          <div className="pt-2 border-t border-gray-200">
-            <h4 className="font-semibold text-gray-900 text-xs uppercase tracking-wider mb-2">Raw Text Snippet</h4>
-            <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded font-mono truncate">
+          <div className="pt-2">
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-2">Raw Text</h4>
+            <div className="text-xs text-muted-foreground bg-muted p-3 border-2 border-foreground/10 font-mono truncate">
               {entry.rawText?.substring(0, 150)}...
             </div>
           </div>

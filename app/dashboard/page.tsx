@@ -17,6 +17,7 @@ import KnowledgeCard from "@/components/KnowledgeCard"
 import IngestionModal from "@/components/IngestionModal"
 import ContradictionModal from "@/components/ContradictionModal"
 import { BrainCircuitIcon } from "@/components/BrainCircuitIcon"
+import { DashboardSkeleton } from "@/components/ui/skeleton"
 import { getEntries, getAllEntries } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/client"
 import type { KnowledgeEntry, FilterState } from "@/types"
@@ -121,14 +122,7 @@ export default function DashboardPage() {
     }
 
     if (isLoading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <div className="text-center">
-                    <BrainCircuitIcon className="w-12 h-12 text-brand-600 animate-pulse mx-auto mb-4" />
-                    <p className="text-gray-500">Loading your knowledge base...</p>
-                </div>
-            </div>
-        )
+        return <DashboardSkeleton />
     }
 
     return (
