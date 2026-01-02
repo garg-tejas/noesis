@@ -33,17 +33,24 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Redirect to login if accessing app and not authenticated
-  if (request.nextUrl.pathname === "/" && !user) {
+  // Redirect authenticated users from landing page to dashboard (optional optimization)
+  if (request.nextUrl.pathname === "/" && user) {
     const url = request.nextUrl.clone()
-    url.pathname = "/auth/login"
+    url.pathname = "/dashboard"
     return NextResponse.redirect(url)
   }
 
-  // Redirect to app if accessing auth pages and already authenticated
+  // Redirect to dashboard if accessing auth pages and already authenticated
   if (request.nextUrl.pathname.startsWith("/auth") && user) {
     const url = request.nextUrl.clone()
-    url.pathname = "/"
+    url.pathname = "/dashboard"
+    return NextResponse.redirect(url)
+  }
+
+  // Protect dashboard and other app routes - redirect unauthenticated users to login
+  if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/auth/login"
     return NextResponse.redirect(url)
   }
 
