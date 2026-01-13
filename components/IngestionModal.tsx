@@ -40,7 +40,6 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
         }
       }
 
-      // Call API route for distillation
       console.log("Starting distillation...", { sourceType, hasUrl: !!url, textLength: rawText?.length || 0 })
 
       const response = await fetch("/api/distill", {

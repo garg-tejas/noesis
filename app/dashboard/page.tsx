@@ -270,7 +270,7 @@ export default function DashboardPage() {
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg shadow-sm shadow-brand-200 transition-all active:scale-95"
+                                className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg shadow-md shadow-brand-600/30 transition-all active:scale-95"
                             >
                                 <Plus className="w-4 h-4" />
                                 Distill New

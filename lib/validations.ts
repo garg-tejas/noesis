@@ -39,11 +39,11 @@ export const knowledgeEntrySchema = z.object({
   sourceType: sourceTypeSchema,
   originalUrl: z.string(),
   author: z.string(),
-  rawText: z.string().optional(),
+  rawText: z.string().nullish(),
   distilled: distilledContentSchema,
   createdAt: z.number(),
   isFavorite: z.boolean(),
-  userNotes: z.string().optional(),
+  userNotes: z.string().nullish(),
 })
 
 // Contradictions API request schema

@@ -21,21 +21,17 @@ export const KnowledgeCardSkeleton: React.FC = () => {
   return (
     <div className="bg-card border-4 border-foreground/20 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden">
       <div className="p-6 flex items-start gap-4">
-        {/* Quality score skeleton */}
         <Skeleton className="flex-shrink-0 w-16 h-16" />
 
         <div className="flex-grow space-y-3">
-          {/* Badges skeleton */}
           <div className="flex items-center gap-2">
             <Skeleton className="h-6 w-20" />
             <Skeleton className="h-6 w-32" />
           </div>
 
-          {/* Title skeleton */}
           <Skeleton className="h-7 w-3/4" />
           <Skeleton className="h-7 w-1/2" />
 
-          {/* Tags skeleton */}
           <div className="flex flex-wrap gap-2 pt-2">
             <Skeleton className="h-6 w-16" />
             <Skeleton className="h-6 w-20" />
@@ -43,7 +39,6 @@ export const KnowledgeCardSkeleton: React.FC = () => {
           </div>
         </div>
 
-        {/* Action buttons skeleton */}
         <div className="flex flex-col gap-2">
           <Skeleton className="w-8 h-8" />
           <Skeleton className="w-8 h-8" />
@@ -51,12 +46,10 @@ export const KnowledgeCardSkeleton: React.FC = () => {
         </div>
       </div>
 
-      {/* Actionables preview skeleton */}
       <div className="px-6 pb-6">
         <Skeleton className="h-16 w-full" />
       </div>
 
-      {/* Expand button skeleton */}
       <div className="w-full py-3 bg-foreground/5 border-t-4 border-foreground/10" />
     </div>
   )
@@ -81,22 +74,18 @@ export const KnowledgeGridSkeleton: React.FC<KnowledgeGridSkeletonProps> = ({ co
 export const SidebarSkeleton: React.FC = () => {
   return (
     <div className="w-80 bg-sidebar border-r-4 border-foreground p-6 space-y-6">
-      {/* Logo skeleton */}
       <div className="flex items-center gap-3 mb-8">
         <Skeleton className="w-8 h-8" />
         <Skeleton className="h-8 w-32" />
       </div>
 
-      {/* Search skeleton */}
       <div className="space-y-2">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-10 w-full" />
       </div>
 
-      {/* Button skeleton */}
       <Skeleton className="h-12 w-full" />
 
-      {/* Filter sections */}
       {[1, 2, 3].map((i) => (
         <div key={i} className="space-y-3">
           <Skeleton className="h-5 w-24" />
@@ -108,7 +97,6 @@ export const SidebarSkeleton: React.FC = () => {
         </div>
       ))}
 
-      {/* Quality slider skeleton */}
       <div className="space-y-3">
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-2 w-full" />
@@ -124,13 +112,11 @@ export const DashboardSkeleton: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <SidebarSkeleton />
       <div className="flex-1 p-8">
-        {/* Header skeleton */}
         <div className="mb-8 space-y-3">
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-6 w-96" />
         </div>
 
-        {/* Grid skeleton */}
         <KnowledgeGridSkeleton count={6} />
       </div>
     </div>

@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { DistilledContent, SourceType, KnowledgeEntry, Contradiction } from "../types";
 
 // Model configuration - defaults can be overridden via environment variables
-const GEMINI_MODEL = process.env.NEXT_PUBLIC_GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.NEXT_PUBLIC_GEMINI_MODEL || "gemini-3-flash-preview";
 
 // Define the response schema for structured output
 const distillationSchema: Schema = {
@@ -77,7 +77,6 @@ export const distillContent = async (
       ],
     })
   } else if (rawText) {
-    // Use text content
     contents.push({
       role: "user",
       parts: [{ text: rawText }],
@@ -142,15 +141,12 @@ const groupEntriesBySimilarity = (entries: KnowledgeEntry[]): KnowledgeEntry[][]
   for (const entry of entries) {
     if (processed.has(entry.id)) continue;
 
-    // Find all entries that share at least one tag with this entry
     const similarEntries = entries.filter((e) => {
       if (e.id === entry.id || processed.has(e.id)) return false;
       
-      // Check if entries share at least one tag
       const entryTags = new Set(entry.distilled.tags.map(t => t.toLowerCase()));
       const otherTags = new Set(e.distilled.tags.map(t => t.toLowerCase()));
       
-      // Check for tag overlap
       for (const tag of entryTags) {
         if (otherTags.has(tag)) return true;
       }
@@ -160,7 +156,6 @@ const groupEntriesBySimilarity = (entries: KnowledgeEntry[]): KnowledgeEntry[][]
       const entryTagStr = Array.from(entryTags).join(" ").toLowerCase();
       const otherTagStr = Array.from(otherTags).join(" ").toLowerCase();
       
-      // Check if any tag from one entry appears in the other's tag string
       for (const tag of entryTags) {
         if (otherTagStr.includes(tag) || tag.includes(otherTagStr.split(" ")[0])) {
           return true;
@@ -171,11 +166,9 @@ const groupEntriesBySimilarity = (entries: KnowledgeEntry[]): KnowledgeEntry[][]
     });
 
     if (similarEntries.length > 0) {
-      // Create a group with the current entry and all similar ones
       const group = [entry, ...similarEntries];
       groups.push(group);
       
-      // Mark all entries in this group as processed
       group.forEach(e => processed.add(e.id));
     }
   }
@@ -192,7 +185,6 @@ export const findContradictions = async (
 
   const ai = new GoogleGenAI({ apiKey });
 
-  // Group entries by similarity (shared tags)
   const similarGroups = groupEntriesBySimilarity(entries);
   
   console.log(`Grouped ${entries.length} entries into ${similarGroups.length} similar groups`);
@@ -205,7 +197,6 @@ export const findContradictions = async (
 
   const allContradictions: Contradiction[] = [];
 
-  // Analyze contradictions within each group of similar entries
   for (let i = 0; i < similarGroups.length; i++) {
     const group = similarGroups[i];
     
@@ -223,7 +214,6 @@ export const findContradictions = async (
     // Limit group size to avoid context window issues
     const groupToAnalyze = group.slice(0, 20);
 
-    // Prepare a condensed version of entries
     const simplifiedEntries = groupToAnalyze.map(e => ({
       id: e.id,
       tags: e.distilled.tags,
@@ -255,7 +245,7 @@ export const findContradictions = async (
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: GEMINI_MODEL,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json",

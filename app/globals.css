@@ -5,19 +5,23 @@
 
 :root {
   /* Warm, intellectual color palette - amber for illumination, purple for AI */
-  --background: oklch(0.99 0.005 85);  /* Warm off-white */
-  --foreground: oklch(0.25 0.01 65);   /* Deep warm charcoal */
+  --background: oklch(0.99 0.005 85);
+  /* Warm off-white */
+  --foreground: oklch(0.25 0.01 65);
+  /* Deep warm charcoal */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.25 0.01 65);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.25 0.01 65);
 
   /* Primary: Deep amber - represents insight & illumination */
-  --primary: oklch(0.65 0.19 55);      /* Rich amber #D97706 */
+  --primary: oklch(0.65 0.19 55);
+  /* Rich amber #D97706 */
   --primary-foreground: oklch(0.99 0 0);
 
   /* Secondary: Electric purple - represents AI & contradictions */
-  --secondary: oklch(0.6 0.24 295);    /* Vibrant purple #8B5CF6 */
+  --secondary: oklch(0.6 0.24 295);
+  /* Vibrant purple #8B5CF6 */
   --secondary-foreground: oklch(0.99 0 0);
 
   /* Muted: Warm neutrals */
@@ -25,7 +29,8 @@
   --muted-foreground: oklch(0.55 0.01 65);
 
   /* Accent: Warm coral for CTAs */
-  --accent: oklch(0.68 0.21 40);       /* Coral #F97316 */
+  --accent: oklch(0.68 0.21 40);
+  /* Coral #F97316 */
   --accent-foreground: oklch(0.99 0 0);
 
   --destructive: oklch(0.58 0.22 25);
@@ -36,11 +41,16 @@
   --input: oklch(0.92 0.01 65);
   --ring: oklch(0.65 0.19 55);
 
-  --chart-1: oklch(0.65 0.19 55);      /* Amber */
-  --chart-2: oklch(0.6 0.24 295);      /* Purple */
-  --chart-3: oklch(0.68 0.21 40);      /* Coral */
-  --chart-4: oklch(0.7 0.18 145);      /* Olive green */
-  --chart-5: oklch(0.55 0.15 25);      /* Warm brown */
+  --chart-1: oklch(0.65 0.19 55);
+  /* Amber */
+  --chart-2: oklch(0.6 0.24 295);
+  /* Purple */
+  --chart-3: oklch(0.68 0.21 40);
+  /* Coral */
+  --chart-4: oklch(0.7 0.18 145);
+  /* Olive green */
+  --chart-5: oklch(0.55 0.15 25);
+  /* Warm brown */
 
   /* Subtle radius for neo-brutalist aesthetic */
   --radius: 0.375rem;
@@ -76,15 +86,19 @@
 }
 
 .dark {
-  --background: oklch(0.18 0.01 65);   /* Deep warm charcoal */
-  --foreground: oklch(0.98 0.005 85);  /* Warm off-white */
+  --background: oklch(0.18 0.01 65);
+  /* Deep warm charcoal */
+  --foreground: oklch(0.98 0.005 85);
+  /* Warm off-white */
   --card: oklch(0.22 0.01 65);
   --card-foreground: oklch(0.98 0.005 85);
   --popover: oklch(0.22 0.01 65);
   --popover-foreground: oklch(0.98 0.005 85);
-  --primary: oklch(0.72 0.19 55);      /* Brighter amber for dark mode */
+  --primary: oklch(0.72 0.19 55);
+  /* Brighter amber for dark mode */
   --primary-foreground: oklch(0.18 0 0);
-  --secondary: oklch(0.68 0.24 295);   /* Brighter purple for dark mode */
+  --secondary: oklch(0.68 0.24 295);
+  /* Brighter purple for dark mode */
   --secondary-foreground: oklch(0.18 0 0);
   --muted: oklch(0.28 0.01 65);
   --muted-foreground: oklch(0.65 0.01 65);
@@ -168,18 +182,33 @@
   --color-brand-purple-900: var(--brand-purple-900);
   --color-brand-coral-500: var(--brand-coral-500);
   --color-brand-coral-600: var(--brand-coral-600);
+
+  /* Generic brand colors for backward compatibility */
+  --color-brand-50: var(--brand-amber-50);
+  --color-brand-100: var(--brand-amber-100);
+  --color-brand-200: var(--brand-amber-200);
+  --color-brand-500: var(--brand-amber-500);
+  --color-brand-600: var(--brand-amber-600);
+  --color-brand-700: var(--brand-amber-700);
+  --color-brand-900: var(--brand-amber-900);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 
   /* Distinctive typography hierarchy */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-display;
     font-feature-settings: "ss01", "ss02";
     letter-spacing: -0.02em;
@@ -226,6 +255,7 @@
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -237,6 +267,7 @@
     transform: translateX(-20px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -244,18 +275,24 @@
 }
 
 @keyframes border-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     border-color: hsl(var(--border));
   }
+
   50% {
     border-color: hsl(var(--primary));
   }
 }
 
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -265,6 +302,7 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }

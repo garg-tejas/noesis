@@ -18,11 +18,21 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Validate request body with Zod
     const parseResult = contradictionsRequestSchema.safeParse(body)
     if (!parseResult.success) {
+      const formattedErrors = parseResult.error.format()
+      console.error("Contradiction validation failed:", {
+        errors: formattedErrors,
+        receivedEntriesCount: body.entries?.length || 0,
+        flattenedErrors: parseResult.error.flatten()
+      })
+      
       return NextResponse.json(
-        { error: "Validation failed", details: parseResult.error.flatten() },
+        { 
+          error: "Validation failed", 
+          details: formattedErrors,
+          fieldErrors: parseResult.error.flatten().fieldErrors
+        },
         { status: 400 }
       )
     }
@@ -41,17 +51,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`Found ${contradictions.length} contradictions across ${entries.length} entries`)
 
-    // Create server-side Supabase client for saving notes
     const supabaseClient = await createClient()
 
-    // Save contradiction notes to both entries involved
     for (const contradiction of contradictions) {
       const entry1 = entriesMap.get(contradiction.item1_id)
       const entry2 = entriesMap.get(contradiction.item2_id)
 
       if (entry1 && entry2) {
         try {
-          // Add note to entry1 about entry2
           await appendContradictionNote(
             entry1.id,
             entry2.id,
@@ -60,7 +67,6 @@ export async function POST(request: NextRequest) {
             supabaseClient
           )
 
-          // Add note to entry2 about entry1
           await appendContradictionNote(
             entry2.id,
             entry1.id,

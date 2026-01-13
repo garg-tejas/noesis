@@ -60,7 +60,6 @@ export const getEntries = async (
     }
   }
 
-  // Get total count
   const { count } = await supabase
     .from("knowledge_entries")
     .select("*", { count: "exact", head: true })
@@ -69,7 +68,6 @@ export const getEntries = async (
   const total = count ?? 0
   const totalPages = Math.ceil(total / limit)
 
-  // Get paginated data
   const { data, error } = await supabase
     .from("knowledge_entries")
     .select("*")
@@ -134,7 +132,6 @@ export const updateEntry = async (id: string, updates: Partial<KnowledgeEntry>):
 export const toggleFavorite = async (id: string): Promise<void> => {
   const supabase = createClient()
 
-  // Get current favorite status
   const { data: entry } = await supabase.from("knowledge_entries").select("is_favorite").eq("id", id).single()
 
   if (!entry) throw new Error("Entry not found")
@@ -145,9 +142,9 @@ export const toggleFavorite = async (id: string): Promise<void> => {
 }
 
 /**
- * Appends a contradiction note to an entry's user notes
- * Avoids duplicates by checking if the contradiction is already mentioned
- * This function works server-side (used in API routes)
+ * Appends a contradiction note to an entry's user notes.
+ * Avoids duplicates by checking if the contradiction is already mentioned.
+ * Server-side only (used in API routes).
  */
 export const appendContradictionNote = async (
   entryId: string,
@@ -156,7 +153,6 @@ export const appendContradictionNote = async (
   otherEntryAuthor: string,
   supabaseClient: Awaited<ReturnType<typeof createServerClient>>
 ): Promise<void> => {
-  // Get current entry to check existing notes
   const { data: entry, error: fetchError } = await supabaseClient
     .from("knowledge_entries")
     .select("user_notes")
@@ -169,17 +165,14 @@ export const appendContradictionNote = async (
   const existingNotes = entry.user_notes || ""
   const contradictionMarker = `🔴 CONTRADICTION`
   
-  // Check if this contradiction is already noted (avoid duplicates)
   if (existingNotes.includes(contradictionMarker) && existingNotes.includes(otherEntryId)) {
     console.log(`Contradiction note already exists for entry ${entryId}`)
     return
   }
 
-  // Format the contradiction note
   const timestamp = new Date().toLocaleDateString()
   const contradictionNote = `\n\n${contradictionMarker} (${timestamp})\nContradicts: ${otherEntryAuthor}\n${contradictionDescription}\n---`
 
-  // Append to existing notes
   const updatedNotes = existingNotes.trim() 
     ? `${existingNotes}${contradictionNote}`
     : contradictionNote.trim()

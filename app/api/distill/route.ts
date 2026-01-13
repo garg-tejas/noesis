@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Validate request body with Zod
     const parseResult = distillRequestSchema.safeParse(body)
     if (!parseResult.success) {
       return NextResponse.json(

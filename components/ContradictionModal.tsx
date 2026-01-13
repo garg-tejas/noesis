@@ -15,6 +15,7 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
   const [contradictions, setContradictions] = useState<Contradiction[]>([])
   const [loading, setLoading] = useState(false)
   const [analyzed, setAnalyzed] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen && !analyzed && entries.length >= 2) {
@@ -24,7 +25,24 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
 
   const analyze = async () => {
     setLoading(true)
+    setError(null)
     try {
+      // Log entries being sent for debugging
+      console.log("Sending entries for contradiction analysis:", {
+        count: entries.length,
+        entries: entries.map(e => ({
+          id: e.id,
+          idType: typeof e.id,
+          isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.id),
+          sourceType: e.sourceType,
+          hasDistilled: !!e.distilled,
+          hasAuthor: !!e.author,
+          hasOriginalUrl: !!e.originalUrl,
+          createdAtType: typeof e.createdAt,
+          isFavoriteType: typeof e.isFavorite,
+        }))
+      })
+
       const response = await fetch("/api/contradictions", {
         method: "POST",
         headers: {
@@ -35,13 +53,16 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to analyze contradictions")
+        console.error("Contradiction API error:", errorData)
+
+        throw new Error("Unable to analyze contradictions. Please try again or contact support if the issue persists.")
       }
 
       const data = await response.json()
       setContradictions(data.contradictions || [])
     } catch (e) {
       console.error("Contradiction analysis error:", e)
+      setError(e instanceof Error ? e.message : "Unknown error occurred")
     } finally {
       setLoading(false)
       setAnalyzed(true)
@@ -66,7 +87,17 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
         </div>
 
         <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
-          {loading ? (
+          {error ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-red-900 mb-2">Error</h3>
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          ) : loading ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <Loader2 className="w-8 h-8 animate-spin text-orange-500 mb-3" />
               <p>Cross-referencing ideas...</p>
@@ -101,7 +132,6 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      {/* Item 1 */}
                       <div className="p-3 bg-gray-50 rounded border border-gray-200 text-xs">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-semibold text-gray-700 truncate">{item1.author}</span>
@@ -119,7 +149,6 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
                         <p className="text-gray-600 line-clamp-3 italic">"{item1.distilled.core_ideas[0]}"</p>
                       </div>
 
-                      {/* Item 2 */}
                       <div className="p-3 bg-gray-50 rounded border border-gray-200 text-xs">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-semibold text-gray-700 truncate">{item2.author}</span>
