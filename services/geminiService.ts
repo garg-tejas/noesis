@@ -138,38 +138,49 @@ const groupEntriesBySimilarity = (entries: KnowledgeEntry[]): KnowledgeEntry[][]
   const groups: KnowledgeEntry[][] = [];
   const processed = new Set<string>();
 
+  const entryTagSets = new Map<string, Set<string>>();
+  for (const entry of entries) {
+    entryTagSets.set(entry.id, new Set(entry.distilled.tags.map(t => t.toLowerCase())));
+  }
+
   for (const entry of entries) {
     if (processed.has(entry.id)) continue;
 
-    const similarEntries = entries.filter((e) => {
-      if (e.id === entry.id || processed.has(e.id)) return false;
+    const entryTags = entryTagSets.get(entry.id)!;
+    const similarEntries: KnowledgeEntry[] = [];
+
+    for (const e of entries) {
+      if (e.id === entry.id || processed.has(e.id)) continue;
       
-      const entryTags = new Set(entry.distilled.tags.map(t => t.toLowerCase()));
-      const otherTags = new Set(e.distilled.tags.map(t => t.toLowerCase()));
-      
-      for (const tag of entryTags) {
-        if (otherTags.has(tag)) return true;
-      }
-      
-      // Also check for semantic similarity in tags (e.g., "RL" and "Reinforcement Learning")
-      // This is a simple check - could be enhanced with semantic matching
-      const entryTagStr = Array.from(entryTags).join(" ").toLowerCase();
-      const otherTagStr = Array.from(otherTags).join(" ").toLowerCase();
+      const otherTags = entryTagSets.get(e.id)!;
       
       for (const tag of entryTags) {
-        if (otherTagStr.includes(tag) || tag.includes(otherTagStr.split(" ")[0])) {
-          return true;
+        if (otherTags.has(tag)) {
+          similarEntries.push(e);
+          break;
         }
       }
       
-      return false;
-    });
+      if (similarEntries.length === 0 || similarEntries[similarEntries.length - 1] !== e) {
+        const entryTagStr = Array.from(entryTags).join(" ");
+        const otherTagStr = Array.from(otherTags).join(" ");
+        
+        for (const tag of entryTags) {
+          if (otherTagStr.includes(tag) || tag.includes(otherTagStr.split(" ")[0] || "")) {
+            similarEntries.push(e);
+            break;
+          }
+        }
+      }
+    }
 
     if (similarEntries.length > 0) {
       const group = [entry, ...similarEntries];
       groups.push(group);
       
-      group.forEach(e => processed.add(e.id));
+      for (const e of group) {
+        processed.add(e.id);
+      }
     }
   }
 

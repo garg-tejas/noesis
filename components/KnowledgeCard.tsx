@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback, memo } from "react"
 import type { KnowledgeEntry } from "../types"
 import {
   ExternalLink,
@@ -26,7 +26,7 @@ interface KnowledgeCardProps {
   searchQuery?: string
 }
 
-const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQuery }) => {
+const KnowledgeCard: React.FC<KnowledgeCardProps> = memo(({ entry, onUpdate, searchQuery }) => {
   const [isExpanded, setIsExpanded] = useState(false)
   const [noteText, setNoteText] = useState(entry.userNotes || "")
   const [isNoteDirty, setIsNoteDirty] = useState(false)
@@ -43,7 +43,7 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
     }
   }, [noteText, isExpanded])
 
-  const handleFavorite = async (e: React.MouseEvent) => {
+  const handleFavorite = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
       await toggleFavorite(entry.id)
@@ -51,9 +51,9 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
     } catch (error) {
       console.error("Failed to toggle favorite:", error)
     }
-  }
+  }, [entry.id, onUpdate])
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (confirm("Are you sure you want to delete this insight?")) {
       try {
@@ -63,9 +63,9 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
         console.error("Failed to delete entry:", error)
       }
     }
-  }
+  }, [entry.id, onUpdate])
 
-  const handleSaveNote = async () => {
+  const handleSaveNote = useCallback(async () => {
     if (isNoteDirty) {
       try {
         await updateEntry(entry.id, { userNotes: noteText })
@@ -75,14 +75,14 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
         console.error("Failed to save note:", error)
       }
     }
-  }
+  }, [entry.id, isNoteDirty, noteText, onUpdate])
 
-  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleNoteChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNoteText(e.target.value)
     setIsNoteDirty(true)
-  }
+  }, [])
 
-  const handleBadgeClick = (e: React.MouseEvent) => {
+  const handleBadgeClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     setIsExpanded(true)
     // Small delay to allow render before focusing
@@ -90,7 +90,7 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
       textareaRef.current?.focus()
       textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
     }, 100)
-  }
+  }, [])
 
   const qualityColor =
     distilled.quality_score >= 80
@@ -103,9 +103,8 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
 
   return (
     <div
-      className={`group relative bg-card border-4 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all duration-150 overflow-hidden flex flex-col ${
-        isLowQuality ? "border-destructive bg-destructive/5" : ""
-      }`}
+      className={`group relative bg-card border-4 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all duration-150 overflow-hidden flex flex-col ${isLowQuality ? "border-destructive bg-destructive/5" : ""
+        }`}
     >
       {/* Neo-brutalist Header */}
       <div className="p-6 flex items-start gap-4">
@@ -156,27 +155,25 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
                 {tag}
               </span>
             ))}
-            {entry.userNotes && (
+            {entry.userNotes ? (
               <button
                 onClick={handleBadgeClick}
-                className={`inline-flex items-center text-xs font-mono font-bold px-2 py-1 border-2 border-foreground transition-all ${
-                  isNoteMatch
-                    ? "bg-primary text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                    : "bg-accent/20 text-accent hover:bg-accent/30"
-                }`}
+                className={`inline-flex items-center text-xs font-mono font-bold px-2 py-1 border-2 border-foreground transition-all ${isNoteMatch
+                  ? "bg-primary text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                  : "bg-accent/20 text-accent hover:bg-accent/30"
+                  }`}
               >
                 <PenLine className="w-3 h-3 mr-1" /> NOTE
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
         <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={handleFavorite}
-            className={`p-2 border-2 border-foreground hover:bg-primary hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] ${
-              entry.isFavorite ? "bg-primary text-white" : "bg-card"
-            }`}
+            className={`p-2 border-2 border-foreground hover:bg-primary hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] ${entry.isFavorite ? "bg-primary text-white" : "bg-card"
+              }`}
           >
             <Star className={`w-4 h-4 ${entry.isFavorite ? "fill-current" : ""}`} />
           </button>
@@ -200,14 +197,14 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
       </div>
 
       {/* Actionables Highlight - Neo-brutalist */}
-      {distilled.actionables.length > 0 && (
+      {distilled.actionables.length > 0 ? (
         <div className="px-6 pb-6">
           <div className="flex items-start gap-3 bg-accent/10 border-2 border-accent/40 p-4">
             <Zap className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
             <p className="text-sm font-medium line-clamp-2">{distilled.actionables[0]}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Expand/Collapse Toggle - Bold */}
       <button
@@ -226,7 +223,7 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
       </button>
 
       {/* Expanded Content - Editorial */}
-      {isExpanded && (
+      {isExpanded ? (
         <div className="p-6 border-t-4 border-foreground bg-muted/30 space-y-6 text-sm animate-slide-in-bottom">
           <div className="space-y-2">
             <h4 className="font-display font-bold text-sm uppercase tracking-wider border-b-2 border-foreground pb-1">
@@ -272,9 +269,8 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
 
           {/* User Notes Section - Warm Accent */}
           <div
-            className={`space-y-2 pt-4 border-t-4 border-foreground ${
-              isNoteMatch ? "bg-primary/10 -mx-6 px-6 py-4" : ""
-            }`}
+            className={`space-y-2 pt-4 border-t-4 border-foreground ${isNoteMatch ? "bg-primary/10 -mx-6 px-6 py-4" : ""
+              }`}
           >
             <div className="flex items-center justify-between">
               <h4 className="font-display font-bold text-sm uppercase tracking-wider flex items-center gap-2 text-primary">
@@ -290,9 +286,8 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
                 value={noteText}
                 onChange={handleNoteChange}
                 placeholder="Add your thoughts, connections, or reflections..."
-                className={`w-full min-h-[120px] p-4 border-2 bg-card focus:bg-background focus:ring-4 focus:ring-primary/20 focus:border-primary outline-none text-sm resize-none overflow-hidden transition-all ${
-                  isNoteMatch ? "border-primary ring-4 ring-primary/20" : "border-foreground/20"
-                }`}
+                className={`w-full min-h-[120px] p-4 border-2 bg-card focus:bg-background focus:ring-4 focus:ring-primary/20 focus:border-primary outline-none text-sm resize-none overflow-hidden transition-all ${isNoteMatch ? "border-primary ring-4 ring-primary/20" : "border-foreground/20"
+                  }`}
                 onBlur={handleSaveNote}
               />
               {isNoteDirty && (
@@ -314,9 +309,11 @@ const KnowledgeCard: React.FC<KnowledgeCardProps> = ({ entry, onUpdate, searchQu
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
-}
+})
+
+KnowledgeCard.displayName = "KnowledgeCard"
 
 export default KnowledgeCard

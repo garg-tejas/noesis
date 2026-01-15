@@ -26,7 +26,7 @@ export default function Page() {
       }
     }
     checkAuth()
-  }, [router])
+  }, [])
 
   if (isChecking) {
     return (

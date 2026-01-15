@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
     Search,
     Filter,
@@ -13,9 +13,16 @@ import {
     LogOut,
     User,
 } from "lucide-react"
+import dynamic from "next/dynamic"
 import KnowledgeCard from "@/components/KnowledgeCard"
-import IngestionModal from "@/components/IngestionModal"
-import ContradictionModal from "@/components/ContradictionModal"
+
+const IngestionModal = dynamic(() => import("@/components/IngestionModal"), {
+    ssr: false,
+})
+
+const ContradictionModal = dynamic(() => import("@/components/ContradictionModal"), {
+    ssr: false,
+})
 import { BrainCircuitIcon } from "@/components/BrainCircuitIcon"
 import { DashboardSkeleton } from "@/components/ui/skeleton"
 import { getEntries, getAllEntries } from "@/services/storageService"
@@ -58,7 +65,7 @@ export default function DashboardPage() {
             setIsLoading(false)
         }
         init()
-    }, [router])
+    }, [])
 
     const refreshData = async () => {
         try {
@@ -85,41 +92,74 @@ export default function DashboardPage() {
 
     // Filtering Logic
     const filteredEntries = useMemo(() => {
+        // Pre-compute Set for O(1) tag lookups
+        const selectedTagsSet = filters.selectedTags.length > 0
+            ? new Set(filters.selectedTags)
+            : null
+        const searchQuery = filters.searchQuery?.toLowerCase() || ""
+
         return entries.filter((entry) => {
+            // Early exit for quality score
             if (!showLowQuality && entry.distilled.quality_score < 40) return false
             if (entry.distilled.quality_score < filters.minQualityScore) return false
 
+            // Early exit for source filter
             if (filters.sourceFilter !== "all" && entry.sourceType !== filters.sourceFilter) return false
 
-            if (filters.selectedTags.length > 0) {
-                const hasTag = filters.selectedTags.some((tag) => entry.distilled.tags.includes(tag))
+            // O(1) tag lookup using Set
+            if (selectedTagsSet) {
+                const entryTagsSet = new Set(entry.distilled.tags)
+                let hasTag = false
+                for (const tag of selectedTagsSet) {
+                    if (entryTagsSet.has(tag)) {
+                        hasTag = true
+                        break
+                    }
+                }
                 if (!hasTag) return false
             }
 
-            if (filters.searchQuery) {
-                const query = filters.searchQuery.toLowerCase()
-                const contentMatch =
-                    entry.distilled.core_ideas.some((i) => i.toLowerCase().includes(query)) ||
-                    entry.distilled.context.toLowerCase().includes(query) ||
-                    entry.author.toLowerCase().includes(query) ||
-                    entry.distilled.tags.some((t) => t.toLowerCase().includes(query)) ||
-                    (entry.userNotes && entry.userNotes.toLowerCase().includes(query))
+            // Search query matching
+            if (searchQuery) {
+                const contextLower = entry.distilled.context.toLowerCase()
+                const authorLower = entry.author.toLowerCase()
+                const userNotesLower = entry.userNotes?.toLowerCase() || ""
 
-                if (!contentMatch) return false
+                // Check context and author first (cheaper)
+                if (contextLower.includes(searchQuery) || authorLower.includes(searchQuery) || userNotesLower.includes(searchQuery)) {
+                    return true
+                }
+
+                // Then check arrays
+                for (const idea of entry.distilled.core_ideas) {
+                    if (idea.toLowerCase().includes(searchQuery)) return true
+                }
+
+                for (const tag of entry.distilled.tags) {
+                    if (tag.toLowerCase().includes(searchQuery)) return true
+                }
+
+                return false
             }
 
             return true
         })
     }, [entries, filters, showLowQuality])
 
-    const toggleTag = (tag: string) => {
-        setFilters((prev) => ({
-            ...prev,
-            selectedTags: prev.selectedTags.includes(tag)
-                ? prev.selectedTags.filter((t) => t !== tag)
-                : [...prev.selectedTags, tag],
-        }))
-    }
+    const toggleTag = useCallback((tag: string) => {
+        setFilters((prev) => {
+            const selectedTagsSet = new Set(prev.selectedTags)
+            if (selectedTagsSet.has(tag)) {
+                selectedTagsSet.delete(tag)
+            } else {
+                selectedTagsSet.add(tag)
+            }
+            return {
+                ...prev,
+                selectedTags: Array.from(selectedTagsSet),
+            }
+        })
+    }, [])
 
     if (isLoading) {
         return <DashboardSkeleton />
@@ -297,7 +337,7 @@ export default function DashboardPage() {
                             <Filter className="w-10 h-10 text-gray-300 mb-3" />
                             <p className="text-gray-500">No items match your filters.</p>
                             <button
-                                onClick={() => setFilters({ searchQuery: "", minQualityScore: 0, selectedTags: [], sourceFilter: "all" })}
+                                onClick={() => setFilters(() => ({ searchQuery: "", minQualityScore: 0, selectedTags: [], sourceFilter: "all" }))}
                                 className="mt-2 text-brand-600 text-sm font-medium hover:underline"
                             >
                                 Clear all filters

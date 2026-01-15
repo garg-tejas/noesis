@@ -21,7 +21,7 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
     if (isOpen && !analyzed && entries.length >= 2) {
       analyze()
     }
-  }, [isOpen, entries])
+  }, [isOpen, entries.length])
 
   const analyze = async () => {
     setLoading(true)

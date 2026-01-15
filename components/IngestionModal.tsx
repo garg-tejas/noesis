@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { X, Loader2, Sparkles, AlertCircle } from "lucide-react"
 import { saveEntry } from "../services/storageService"
 import type { KnowledgeEntry, SourceType } from "../types"
@@ -22,7 +22,7 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
 
   if (!isOpen) return null
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setIsProcessing(true)
@@ -82,16 +82,16 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
     } finally {
       setIsProcessing(false)
     }
-  }
+  }, [url, rawText, sourceType, author, onSuccess])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setUrl("")
     setRawText("")
     setAuthor("")
     setSourceType("twitter")
     setError(null)
     onClose()
-  }
+  }, [onClose])
 
   const isYouTube = sourceType === "youtube"
   const isSubmitDisabled = isProcessing || (isYouTube ? !url.trim() : !rawText.trim())

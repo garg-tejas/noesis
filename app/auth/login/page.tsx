@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     const supabase = createClient()
     setIsLoading(true)
@@ -36,7 +36,7 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [email, password, router])
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center p-6">
