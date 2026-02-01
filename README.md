@@ -167,5 +167,3 @@ Saving is easy. Understanding is not.
 * Spaced repetition for high-value content
 * Export to Obsidian / Notion
 * Browser extension for capture
-
-This is already a solid project—this version just makes the judgment behind it unmistakable.
