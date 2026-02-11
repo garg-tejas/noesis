@@ -33,6 +33,15 @@ export interface Contradiction {
   description: string;
 }
 
+export interface ContradictionRecord {
+  id: string;
+  userId: string;
+  item1Id: string;
+  item2Id: string;
+  description: string;
+  createdAt: string;
+}
+
 export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { findContradictions } from "@/services/geminiService"
-import { appendContradictionNote, getEntriesByIdsForUser } from "@/services/storageService"
+import {
+  appendContradictionNote,
+  getEntriesByIdsForUser,
+  saveContradictionsForUser,
+} from "@/services/storageService"
 import { createClient } from "@/lib/supabase/server"
 import { contradictionsRequestSchema } from "@/lib/validations"
 import type { KnowledgeEntry } from "@/types"
@@ -82,7 +86,27 @@ export async function POST(request: NextRequest) {
 
     console.log(`Found ${contradictions.length} contradictions across ${entries.length} entries`)
 
-    for (const contradiction of contradictions) {
+    const validContradictions = contradictions.filter(
+      (contradiction) =>
+        contradiction.item1_id !== contradiction.item2_id &&
+        entriesMap.has(contradiction.item1_id) &&
+        entriesMap.has(contradiction.item2_id)
+    )
+    const droppedContradictions = contradictions.length - validContradictions.length
+    if (droppedContradictions > 0) {
+      console.warn(`Dropped ${droppedContradictions} invalid contradictions returned by model`)
+    }
+
+    const persistence = await saveContradictionsForUser(
+      validContradictions,
+      user.id,
+      supabaseClient
+    )
+    console.log(
+      `Persisted ${persistence.created} contradictions, skipped ${persistence.skipped} duplicates`
+    )
+
+    for (const contradiction of validContradictions) {
       const entry1 = entriesMap.get(contradiction.item1_id)
       const entry2 = entriesMap.get(contradiction.item2_id)
 
@@ -112,7 +136,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ contradictions })
+    return NextResponse.json({
+      contradictions: validContradictions,
+      persistence: {
+        created: persistence.created,
+        skipped: persistence.skipped,
+        dropped: droppedContradictions,
+      },
+    })
   } catch (error) {
     console.error("Contradiction analysis error:", error)
     return errorResponse(

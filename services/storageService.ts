@@ -1,4 +1,9 @@
-import type { KnowledgeEntry, Contradiction, SourceType } from "../types"
+import type {
+  KnowledgeEntry,
+  Contradiction,
+  ContradictionRecord,
+  SourceType,
+} from "../types"
 import { createClient } from "@/lib/supabase/client"
 import { createClient as createServerClient } from "@/lib/supabase/server"
 
@@ -22,6 +27,34 @@ const mapDbRowToEntry = (row: {
   createdAt: new Date(row.created_at).getTime(),
   isFavorite: row.is_favorite,
   userNotes: row.user_notes ?? undefined,
+})
+
+const normalizeContradictionPair = (item1Id: string, item2Id: string): [string, string] =>
+  item1Id < item2Id ? [item1Id, item2Id] : [item2Id, item1Id]
+
+const normalizeContradictionDescription = (description: string): string =>
+  description.trim().replace(/\s+/g, " ").toLowerCase()
+
+const contradictionMapKey = (
+  item1Id: string,
+  item2Id: string,
+  description: string
+): string => `${item1Id}::${item2Id}::${normalizeContradictionDescription(description)}`
+
+const mapDbRowToContradictionRecord = (row: {
+  id: string
+  user_id: string
+  item1_id: string
+  item2_id: string
+  description: string
+  created_at: string
+}): ContradictionRecord => ({
+  id: row.id,
+  userId: row.user_id,
+  item1Id: row.item1_id,
+  item2Id: row.item2_id,
+  description: row.description,
+  createdAt: row.created_at,
 })
 
 export const saveEntry = async (entry: KnowledgeEntry): Promise<void> => {
@@ -287,6 +320,100 @@ export const getEntriesByIdsForUser = async (
   return (data || []).map(mapDbRowToEntry)
 }
 
+export interface PersistContradictionsResult {
+  created: number
+  skipped: number
+  records: ContradictionRecord[]
+}
+
+export const saveContradictionsForUser = async (
+  contradictions: Contradiction[],
+  userId: string,
+  supabaseClient: Awaited<ReturnType<typeof createServerClient>>
+): Promise<PersistContradictionsResult> => {
+  if (contradictions.length === 0) {
+    return { created: 0, skipped: 0, records: [] }
+  }
+
+  const normalizedCandidates = new Map<
+    string,
+    { user_id: string; item1_id: string; item2_id: string; description: string }
+  >()
+
+  for (const contradiction of contradictions) {
+    if (contradiction.item1_id === contradiction.item2_id) continue
+
+    const trimmedDescription = contradiction.description.trim()
+    if (!trimmedDescription) continue
+
+    const [item1Id, item2Id] = normalizeContradictionPair(
+      contradiction.item1_id,
+      contradiction.item2_id
+    )
+    const key = contradictionMapKey(item1Id, item2Id, trimmedDescription)
+
+    if (!normalizedCandidates.has(key)) {
+      normalizedCandidates.set(key, {
+        user_id: userId,
+        item1_id: item1Id,
+        item2_id: item2Id,
+        description: trimmedDescription,
+      })
+    }
+  }
+
+  if (normalizedCandidates.size === 0) {
+    return { created: 0, skipped: contradictions.length, records: [] }
+  }
+
+  const candidateValues = Array.from(normalizedCandidates.values())
+  const relatedEntryIds = Array.from(
+    new Set(candidateValues.flatMap((candidate) => [candidate.item1_id, candidate.item2_id]))
+  )
+
+  const { data: existingRows, error: existingError } = await supabaseClient
+    .from("contradictions")
+    .select("id, user_id, item1_id, item2_id, description, created_at")
+    .eq("user_id", userId)
+    .in("item1_id", relatedEntryIds)
+    .in("item2_id", relatedEntryIds)
+
+  if (existingError) throw existingError
+
+  const existingKeys = new Set(
+    (existingRows || []).map((row) => {
+      const [item1Id, item2Id] = normalizeContradictionPair(row.item1_id, row.item2_id)
+      return contradictionMapKey(item1Id, item2Id, row.description)
+    })
+  )
+
+  const toInsert = candidateValues.filter((candidate) => {
+    const key = contradictionMapKey(
+      candidate.item1_id,
+      candidate.item2_id,
+      candidate.description
+    )
+    return !existingKeys.has(key)
+  })
+
+  if (toInsert.length === 0) {
+    return { created: 0, skipped: candidateValues.length, records: [] }
+  }
+
+  const { data: insertedRows, error: insertError } = await supabaseClient
+    .from("contradictions")
+    .insert(toInsert)
+    .select("id, user_id, item1_id, item2_id, description, created_at")
+
+  if (insertError) throw insertError
+
+  return {
+    created: insertedRows?.length || 0,
+    skipped: candidateValues.length - (insertedRows?.length || 0),
+    records: (insertedRows || []).map(mapDbRowToContradictionRecord),
+  }
+}
+
 export const deleteEntry = async (id: string): Promise<void> => {
   const supabase = createClient()
   const { error } = await supabase.from("knowledge_entries").delete().eq("id", id)
@@ -340,9 +467,13 @@ export const appendContradictionNote = async (
   if (!entry) throw new Error("Entry not found")
 
   const existingNotes = entry.user_notes || ""
-  const contradictionMarker = `🔴 CONTRADICTION`
-  
-  if (existingNotes.includes(contradictionMarker) && existingNotes.includes(otherEntryId)) {
+  const contradictionMarker = "CONTRADICTION"
+
+  if (
+    existingNotes.includes(contradictionMarker) &&
+    existingNotes.includes(otherEntryId) &&
+    existingNotes.includes(contradictionDescription)
+  ) {
     console.log(`Contradiction note already exists for entry ${entryId}`)
     return
   }
@@ -361,3 +492,4 @@ export const appendContradictionNote = async (
 
   if (updateError) throw updateError
 }
+
