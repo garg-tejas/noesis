@@ -113,7 +113,7 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-brand-600" />
-            Distill New Knowledge
+            Curate New Knowledge
           </h2>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-5 h-5" />
@@ -212,7 +212,7 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
             {!isYouTube && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Content to Distill
+                  Content to Curate
                   <span className="ml-2 text-xs font-normal text-gray-400">(Paste the thread or article text here)</span>
                 </label>
                 <textarea
@@ -245,12 +245,12 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
             {isProcessing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Distilling...
+                Curating...
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                Distill Knowledge
+                Curate Knowledge
               </>
             )}
           </button>

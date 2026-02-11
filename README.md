@@ -1,6 +1,6 @@
 # Noesis
 
-**Turn saved content into remembered knowledge.**
+**A personal AI knowledge curation platform with contradiction intelligence.**
 
 Noesis extracts high-signal ideas from tweets, articles, and videos, stores them as searchable insights, and flags contradictions across what you’ve saved—so you don’t accumulate unread links or internalize conflicting information.
 
@@ -83,6 +83,30 @@ Articles, threads, and videos accumulate faster than they can be read, revisited
 
 * **Single-user scope**
   Optimized for individual knowledge building, not collaboration.
+
+---
+
+## Why This Is Hard (And What Noesis Solves)
+
+### 1) LLM output quality is variable
+*Challenge:* model output can be slow, malformed, or inconsistent.
+*What Noesis does:* schema validation, structured API errors, timeout + retry logic, and graceful upstream failure handling.
+
+### 2) Contradiction detection can become noisy
+*Challenge:* naive pairwise comparisons create false positives and high cost.
+*What Noesis does:* compares only semantically related groups, normalizes contradiction pairs, and persists deduplicated records.
+
+### 3) Retrieval quality degrades as data grows
+*Challenge:* client-side filtering does not scale and creates stale UX.
+*What Noesis does:* server-side search + pagination, debounced querying, and stale request cancellation.
+
+### 4) User-level security boundaries are easy to get wrong
+*Challenge:* client-provided IDs can leak cross-user data if trusted directly.
+*What Noesis does:* server-authoritative `entryIds` checks, explicit auth checks per route, and RLS-backed access controls.
+
+### 5) AI endpoints are sensitive to abuse and cost spikes
+*Challenge:* unrestricted calls can create cost and stability issues.
+*What Noesis does:* per-user fixed-window rate limiting with 429 responses and retry hints.
 
 ---
 

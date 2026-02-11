@@ -295,7 +295,7 @@ export default function DashboardPage() {
                         <BrainCircuitIcon className="w-6 h-6" />
                         <span>Noesis</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Personal Knowledge Distiller</p>
+                    <p className="text-xs text-gray-500 mt-1">AI Knowledge Curation Platform</p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-8">
@@ -359,7 +359,7 @@ export default function DashboardPage() {
                             }}
                             className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-orange-700 bg-orange-50 hover:bg-orange-100 mt-2"
                         >
-                            <GitCompareArrows className="w-4 h-4" /> Find Contradictions
+                            <GitCompareArrows className="w-4 h-4" /> Run Tension Scan
                         </button>
                     </nav>
 
@@ -440,9 +440,9 @@ export default function DashboardPage() {
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Knowledge Base</h1>
+                            <h1 className="text-2xl font-bold text-gray-900">Knowledge Curation Workspace</h1>
                             <p className="text-gray-500 text-sm mt-1">
-                                {pagination.total} {pagination.total === 1 ? "insight" : "insights"}
+                                {pagination.total} {pagination.total === 1 ? "entry" : "entries"}
                                 {filters.searchQuery && ` matching "${filters.searchQuery}"`}
                             </p>
                             {isRefreshing ? <p className="text-xs text-gray-400 mt-1">Updating results...</p> : null}
@@ -466,7 +466,7 @@ export default function DashboardPage() {
                                 className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg shadow-md shadow-brand-600/30 transition-all active:scale-95"
                             >
                                 <Plus className="w-4 h-4" />
-                                Distill New
+                                Curate New
                             </button>
                         </div>
                     </div>
@@ -591,7 +591,7 @@ export default function DashboardPage() {
                             </div>
                             <h3 className="text-lg font-medium text-gray-900">Your mind is empty (for now)</h3>
                             <p className="text-gray-500 max-w-sm mt-2 mb-6">
-                                Start by distilling a tweet thread, blog post, or YouTube video to build your personal knowledge base.
+                                Start by curating a tweet thread, blog post, or YouTube video to build your knowledge system.
                             </p>
                             <button onClick={() => setIsModalOpen(true)} className="text-brand-600 font-medium hover:underline">
                                 Add your first item

@@ -75,7 +75,7 @@ export default function Page() {
             <div className="lg:col-span-7 animate-slide-in-right">
               <div className="inline-block mb-6">
                 <div className="px-4 py-2 bg-secondary/10 border-2 border-secondary font-mono text-xs font-bold text-secondary uppercase tracking-wider">
-                  Knowledge Distillation
+                  AI Knowledge Curation
                 </div>
               </div>
 
@@ -92,8 +92,9 @@ export default function Page() {
               </h1>
 
               <p className="text-xl md:text-2xl text-foreground/70 mb-10 max-w-xl leading-relaxed font-medium">
-                Stop drowning in bookmarks. Transform tweets, articles, and videos into a{" "}
-                <span className="text-primary font-bold">searchable knowledge base</span> that actually matters.
+                Transform tweets, articles, and videos into a{" "}
+                <span className="text-primary font-bold">searchable curation layer</span> that surfaces what matters and
+                flags tensions before they compound.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-12">
@@ -102,7 +103,7 @@ export default function Page() {
                     size="lg"
                     className="bg-primary hover:bg-primary/90 text-white font-bold text-lg px-8 py-7 h-auto border-2 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[3px] active:translate-y-[3px]"
                   >
-                    Start Distilling Free
+                    Start Curating Free
                     <Sparkles className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
@@ -129,7 +130,7 @@ export default function Page() {
                 </div>
                 <div className="px-4 py-2 bg-background border-2 border-foreground font-mono text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                   <Brain className="w-4 h-4 inline mr-2 text-accent" />
-                  Second Brain
+                  Contradiction Intelligence
                 </div>
               </div>
             </div>
@@ -148,7 +149,7 @@ export default function Page() {
                         87
                       </div>
                       <div className="px-3 py-1 bg-secondary text-white font-mono text-xs font-bold border-2 border-foreground">
-                        INSIGHT
+                        CURATED
                       </div>
                     </div>
                     <h4 className="font-display font-bold text-lg mb-2">Quality-Scored Knowledge</h4>
@@ -158,7 +159,7 @@ export default function Page() {
                   <div className="bg-card border-4 border-foreground p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
                     <div className="flex items-center gap-2 mb-3">
                       <GitCompareArrows className="w-5 h-5 text-accent" />
-                      <span className="font-mono text-xs font-bold uppercase tracking-wider">Contradiction Found</span>
+                      <span className="font-mono text-xs font-bold uppercase tracking-wider">Tension Detected</span>
                     </div>
                     <p className="text-sm text-foreground/80 font-medium">AI detects conflicting ideas across your knowledge base automatically.</p>
                   </div>
@@ -200,7 +201,7 @@ export default function Page() {
               </div>
               <h3 className="font-display text-2xl font-bold mb-4">AI Distillation Engine</h3>
               <p className="text-foreground/70 leading-relaxed mb-6">
-                Paste any tweet thread, blog post, or YouTube video. Our AI extracts:
+                Paste any tweet thread, blog post, or YouTube video. Our AI curates:
               </p>
               <ul className="space-y-3">
                 <li className="flex items-start gap-2">
@@ -232,7 +233,7 @@ export default function Page() {
               <GitCompareArrows className="w-12 h-12 text-accent mb-4" />
               <h3 className="font-display text-xl font-bold mb-3">Contradiction Detection</h3>
               <p className="text-foreground/70 text-sm leading-relaxed">
-                AI automatically identifies conflicting ideas across your knowledge base. Refine your thinking and discover blind spots.
+                AI identifies conflicting claims across your curated knowledge so you can resolve inconsistencies early.
               </p>
             </div>
 
@@ -280,15 +281,15 @@ export default function Page() {
                 2
               </div>
               <h3 className="font-display text-2xl font-bold mb-3">AI Distills</h3>
-              <p className="text-foreground/70 text-lg">Extract core ideas, actionables, and quality scores automatically.</p>
+              <p className="text-foreground/70 text-lg">Curate core ideas, actionables, tags, and quality scores automatically.</p>
             </div>
 
             <div className="text-center group">
               <div className="w-24 h-24 bg-accent border-4 border-foreground text-white rounded-none flex items-center justify-center font-display text-4xl font-bold mx-auto mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group-hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:translate-x-[2px] group-hover:translate-y-[2px] transition-all">
                 3
               </div>
-              <h3 className="font-display text-2xl font-bold mb-3">Build Knowledge</h3>
-              <p className="text-foreground/70 text-lg">Search, filter, annotate. Your second brain, organized.</p>
+              <h3 className="font-display text-2xl font-bold mb-3">Stress-Test Knowledge</h3>
+              <p className="text-foreground/70 text-lg">Search, filter, annotate, and detect contradictions in one workflow.</p>
             </div>
           </div>
         </div>
@@ -306,14 +307,14 @@ export default function Page() {
             <span className="text-primary">Start thinking clearly.</span>
           </h2>
           <p className="text-xl md:text-2xl text-background/80 mb-12 max-w-2xl mx-auto font-medium">
-            Join the knowledge seekers building their second brain with Noesis.
+            Join builders and learners creating rigorous personal knowledge systems with Noesis.
           </p>
           <Link href="/auth/sign-up">
             <Button
               size="lg"
               className="bg-primary hover:bg-primary/90 text-white font-bold text-xl px-12 py-8 h-auto border-4 border-background shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] transition-all active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
             >
-              Start Distilling Free
+              Start Curating Free
               <ArrowRight className="w-6 h-6 ml-3" />
             </Button>
           </Link>
@@ -330,7 +331,7 @@ export default function Page() {
               <span className="font-display text-xl font-bold">Noesis</span>
             </div>
             <p className="text-sm text-foreground/60 font-mono">
-              Made for knowledge seekers. Built with care.
+              Made for serious learners. Built with care.
             </p>
           </div>
         </div>
