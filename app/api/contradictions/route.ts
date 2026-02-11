@@ -9,6 +9,16 @@ import { createClient } from "@/lib/supabase/server"
 import { contradictionsRequestSchema } from "@/lib/validations"
 import type { KnowledgeEntry } from "@/types"
 import { errorResponse } from "@/lib/api/errors"
+import { consumeRateLimit, getClientIp } from "@/lib/api/rate-limit"
+
+const CONTRADICTION_RATE_LIMIT_MAX_REQUESTS = Number.parseInt(
+  process.env.CONTRADICTION_RATE_LIMIT_MAX_REQUESTS || "5",
+  10
+)
+const CONTRADICTION_RATE_LIMIT_WINDOW_MS = Number.parseInt(
+  process.env.CONTRADICTION_RATE_LIMIT_WINDOW_MS || "300000",
+  10
+)
 
 export async function POST(request: NextRequest) {
   const supabaseClient = await createClient()
@@ -19,6 +29,26 @@ export async function POST(request: NextRequest) {
 
   if (authError || !user) {
     return errorResponse(401, "UNAUTHORIZED", "Authentication required")
+  }
+
+  const rateLimitResult = consumeRateLimit({
+    namespace: "api:contradictions",
+    key: `${user.id}:${getClientIp(request)}`,
+    limit: CONTRADICTION_RATE_LIMIT_MAX_REQUESTS,
+    windowMs: CONTRADICTION_RATE_LIMIT_WINDOW_MS,
+  })
+  if (!rateLimitResult.allowed) {
+    return errorResponse(
+      429,
+      "RATE_LIMITED",
+      "Too many contradiction analysis requests. Please wait before retrying.",
+      {
+        retryAfterSeconds: rateLimitResult.retryAfterSeconds,
+        limit: rateLimitResult.limit,
+        windowMs: rateLimitResult.windowMs,
+      },
+      { "Retry-After": rateLimitResult.retryAfterSeconds.toString() }
+    )
   }
 
   try {

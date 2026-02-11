@@ -3,6 +3,7 @@ import type { ApiErrorCode, ApiErrorResponse } from "@/types"
 const VALID_API_ERROR_CODES: ApiErrorCode[] = [
   "UNAUTHORIZED",
   "FORBIDDEN",
+  "RATE_LIMITED",
   "VALIDATION_FAILED",
   "BAD_REQUEST",
   "CONFIG_ERROR",
@@ -75,6 +76,8 @@ export const toUserFacingErrorMessage = (
       return "Your session has expired. Please sign in again."
     case "FORBIDDEN":
       return "You do not have permission to perform this action."
+    case "RATE_LIMITED":
+      return "Too many requests. Please wait a bit and try again."
     case "VALIDATION_FAILED":
       return "Some inputs are invalid. Please review and try again."
     case "BAD_REQUEST":

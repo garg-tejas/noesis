@@ -3,6 +3,16 @@ import { AIServiceError, distillContent } from "@/services/geminiService"
 import { distillRequestSchema } from "@/lib/validations"
 import { createClient } from "@/lib/supabase/server"
 import { errorResponse } from "@/lib/api/errors"
+import { consumeRateLimit, getClientIp } from "@/lib/api/rate-limit"
+
+const DISTILL_RATE_LIMIT_MAX_REQUESTS = Number.parseInt(
+  process.env.DISTILL_RATE_LIMIT_MAX_REQUESTS || "12",
+  10
+)
+const DISTILL_RATE_LIMIT_WINDOW_MS = Number.parseInt(
+  process.env.DISTILL_RATE_LIMIT_WINDOW_MS || "60000",
+  10
+)
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -13,6 +23,26 @@ export async function POST(request: NextRequest) {
 
   if (authError || !user) {
     return errorResponse(401, "UNAUTHORIZED", "Authentication required")
+  }
+
+  const rateLimitResult = consumeRateLimit({
+    namespace: "api:distill",
+    key: `${user.id}:${getClientIp(request)}`,
+    limit: DISTILL_RATE_LIMIT_MAX_REQUESTS,
+    windowMs: DISTILL_RATE_LIMIT_WINDOW_MS,
+  })
+  if (!rateLimitResult.allowed) {
+    return errorResponse(
+      429,
+      "RATE_LIMITED",
+      "Too many distillation requests. Please wait before retrying.",
+      {
+        retryAfterSeconds: rateLimitResult.retryAfterSeconds,
+        limit: rateLimitResult.limit,
+        windowMs: rateLimitResult.windowMs,
+      },
+      { "Retry-After": rateLimitResult.retryAfterSeconds.toString() }
+    )
   }
 
   try {
