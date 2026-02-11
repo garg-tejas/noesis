@@ -6,6 +6,8 @@ const VALID_API_ERROR_CODES: ApiErrorCode[] = [
   "VALIDATION_FAILED",
   "BAD_REQUEST",
   "CONFIG_ERROR",
+  "UPSTREAM_TIMEOUT",
+  "UPSTREAM_ERROR",
   "INTERNAL_ERROR",
 ]
 
@@ -79,9 +81,12 @@ export const toUserFacingErrorMessage = (
       return "The request is malformed. Please try again."
     case "CONFIG_ERROR":
       return "Service configuration is missing. Please try again later."
+    case "UPSTREAM_TIMEOUT":
+      return "AI processing timed out. Please try again."
+    case "UPSTREAM_ERROR":
+      return "AI service is temporarily unavailable. Please try again."
     case "INTERNAL_ERROR":
     default:
       return error.message || fallbackMessage
   }
 }
-

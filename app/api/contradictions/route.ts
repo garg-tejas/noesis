@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { findContradictions } from "@/services/geminiService"
+import { AIServiceError, findContradictions } from "@/services/geminiService"
 import {
   appendContradictionNote,
   getEntriesByIdsForUser,
@@ -143,6 +143,12 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Contradiction analysis error:", error)
+    if (error instanceof AIServiceError) {
+      if (error.code === "UPSTREAM_TIMEOUT") {
+        return errorResponse(504, "UPSTREAM_TIMEOUT", "AI processing timed out. Please try again.")
+      }
+      return errorResponse(503, "UPSTREAM_ERROR", "AI service is temporarily unavailable. Please try again.")
+    }
     return errorResponse(
       500,
       "INTERNAL_ERROR",

@@ -48,6 +48,8 @@ export type ApiErrorCode =
   | "VALIDATION_FAILED"
   | "BAD_REQUEST"
   | "CONFIG_ERROR"
+  | "UPSTREAM_TIMEOUT"
+  | "UPSTREAM_ERROR"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorResponse {
