@@ -3,6 +3,7 @@ import type {
   Contradiction,
   ContradictionRecord,
   DashboardStats,
+  ContradictionInsight,
   SourceType,
 } from "../types"
 import { createClient } from "@/lib/supabase/client"
@@ -287,6 +288,27 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
   }
 
   return payload as DashboardStats
+}
+
+export const getRecentContradictions = async (
+  limit = 6
+): Promise<ContradictionInsight[]> => {
+  const params = new URLSearchParams()
+  params.set("limit", String(limit))
+
+  const response = await fetch(`/api/contradictions/recent?${params.toString()}`)
+  const payload: unknown = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw toApiClientError(
+      response,
+      payload,
+      "Failed to fetch recent contradictions"
+    )
+  }
+
+  const data = payload as { contradictions?: ContradictionInsight[] }
+  return data.contradictions || []
 }
 
 /**

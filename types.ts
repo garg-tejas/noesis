@@ -70,6 +70,21 @@ export interface DashboardStats {
   qualityBands: QualityBands;
 }
 
+export interface ContradictionInsightEntry {
+  id: string;
+  author: string;
+  sourceType: SourceType;
+  coreIdea: string;
+}
+
+export interface ContradictionInsight {
+  id: string;
+  description: string;
+  createdAt: string;
+  item1: ContradictionInsightEntry;
+  item2: ContradictionInsightEntry;
+}
+
 export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
