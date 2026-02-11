@@ -32,3 +32,16 @@ export interface Contradiction {
   item2_id: string;
   description: string;
 }
+
+export type ApiErrorCode =
+  | "UNAUTHORIZED"
+  | "VALIDATION_FAILED"
+  | "BAD_REQUEST"
+  | "CONFIG_ERROR"
+  | "INTERNAL_ERROR";
+
+export interface ApiErrorResponse {
+  error: string;
+  code: ApiErrorCode;
+  details?: unknown;
+}

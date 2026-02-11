@@ -1,26 +1,37 @@
 import { NextRequest, NextResponse } from "next/server"
 import { distillContent } from "@/services/geminiService"
 import { distillRequestSchema } from "@/lib/validations"
+import { createClient } from "@/lib/supabase/server"
+import { errorResponse } from "@/lib/api/errors"
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return errorResponse(401, "UNAUTHORIZED", "Authentication required")
+  }
+
   try {
     const apiKey = process.env.GEMINI_API_KEY
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not configured" },
-        { status: 500 }
-      )
+      return errorResponse(500, "CONFIG_ERROR", "GEMINI_API_KEY is not configured")
     }
 
-    const body = await request.json()
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return errorResponse(400, "BAD_REQUEST", "Malformed JSON body")
+    }
 
     const parseResult = distillRequestSchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { error: "Validation failed", details: parseResult.error.flatten() },
-        { status: 400 }
-      )
+      return errorResponse(400, "VALIDATION_FAILED", "Validation failed", parseResult.error.flatten())
     }
 
     const { rawText, sourceType, youtubeUrl } = parseResult.data
@@ -35,11 +46,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(distilledData)
   } catch (error) {
     console.error("Distillation error:", error)
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to distill content",
-      },
-      { status: 500 }
+    return errorResponse(
+      500,
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Failed to distill content"
     )
   }
 }

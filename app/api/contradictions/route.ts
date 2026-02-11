@@ -4,36 +4,53 @@ import { appendContradictionNote } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/server"
 import { contradictionsRequestSchema } from "@/lib/validations"
 import type { KnowledgeEntry } from "@/types"
+import { errorResponse } from "@/lib/api/errors"
 
 export async function POST(request: NextRequest) {
+  const supabaseClient = await createClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabaseClient.auth.getUser()
+
+  if (authError || !user) {
+    return errorResponse(401, "UNAUTHORIZED", "Authentication required")
+  }
+
   try {
     const apiKey = process.env.GEMINI_API_KEY
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not configured" },
-        { status: 500 }
-      )
+      return errorResponse(500, "CONFIG_ERROR", "GEMINI_API_KEY is not configured")
     }
 
-    const body = await request.json()
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return errorResponse(400, "BAD_REQUEST", "Malformed JSON body")
+    }
 
     const parseResult = contradictionsRequestSchema.safeParse(body)
     if (!parseResult.success) {
       const formattedErrors = parseResult.error.format()
+      const receivedEntriesCount = Array.isArray((body as { entries?: unknown[] })?.entries)
+        ? (body as { entries?: unknown[] }).entries!.length
+        : 0
       console.error("Contradiction validation failed:", {
         errors: formattedErrors,
-        receivedEntriesCount: body.entries?.length || 0,
+        receivedEntriesCount,
         flattenedErrors: parseResult.error.flatten()
       })
       
-      return NextResponse.json(
-        { 
-          error: "Validation failed", 
+      return errorResponse(
+        400,
+        "VALIDATION_FAILED",
+        "Validation failed",
+        {
           details: formattedErrors,
-          fieldErrors: parseResult.error.flatten().fieldErrors
-        },
-        { status: 400 }
+          fieldErrors: parseResult.error.flatten().fieldErrors,
+        }
       )
     }
 
@@ -50,8 +67,6 @@ export async function POST(request: NextRequest) {
     )
 
     console.log(`Found ${contradictions.length} contradictions across ${entries.length} entries`)
-
-    const supabaseClient = await createClient()
 
     for (const contradiction of contradictions) {
       const entry1 = entriesMap.get(contradiction.item1_id)
@@ -86,12 +101,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ contradictions })
   } catch (error) {
     console.error("Contradiction analysis error:", error)
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to analyze contradictions",
-      },
-      { status: 500 }
+    return errorResponse(
+      500,
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Failed to analyze contradictions"
     )
   }
 }
-
