@@ -4,6 +4,8 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { X, Loader2, GitCompareArrows, ExternalLink, AlertTriangle } from "lucide-react"
 import type { KnowledgeEntry, Contradiction } from "../types"
+import { ApiClientError, toApiClientError, toUserFacingErrorMessage } from "@/lib/api/client-errors"
+import { useRouter } from "next/navigation"
 
 interface ContradictionModalProps {
   isOpen: boolean
@@ -12,6 +14,7 @@ interface ContradictionModalProps {
 }
 
 const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose, entries }) => {
+  const router = useRouter()
   const [contradictions, setContradictions] = useState<Contradiction[]>([])
   const [loading, setLoading] = useState(false)
   const [analyzed, setAnalyzed] = useState(false)
@@ -57,18 +60,26 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
         },
         body: JSON.stringify({ entryIds }),
       })
+      const payload: unknown = await response.json().catch(() => null)
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Contradiction API error:", errorData)
-        throw new Error(errorData.error || "Unable to analyze contradictions. Please try again.")
+        const apiError = toApiClientError(response, payload, "Unable to analyze contradictions. Please try again.")
+        console.error("Contradiction API error:", apiError)
+        throw apiError
       }
 
-      const data = await response.json()
+      const data = payload as { contradictions?: Contradiction[] }
       setContradictions(data.contradictions || [])
     } catch (e) {
       console.error("Contradiction analysis error:", e)
-      setError(e instanceof Error ? e.message : "Unknown error occurred")
+      if (e instanceof ApiClientError) {
+        if (e.code === "UNAUTHORIZED") {
+          router.push("/auth/login")
+        }
+        setError(toUserFacingErrorMessage(e, "Unable to analyze contradictions. Please try again."))
+      } else {
+        setError(e instanceof Error ? e.message : "Unknown error occurred")
+      }
     } finally {
       setLoading(false)
       setAnalyzed(true)

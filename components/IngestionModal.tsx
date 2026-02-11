@@ -5,6 +5,8 @@ import { useState, useCallback } from "react"
 import { X, Loader2, Sparkles, AlertCircle } from "lucide-react"
 import { saveEntry } from "../services/storageService"
 import type { KnowledgeEntry, SourceType } from "../types"
+import { ApiClientError, toApiClientError, toUserFacingErrorMessage } from "@/lib/api/client-errors"
+import { useRouter } from "next/navigation"
 
 interface IngestionModalProps {
   isOpen: boolean
@@ -13,6 +15,7 @@ interface IngestionModalProps {
 }
 
 const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const router = useRouter()
   const [url, setUrl] = useState("")
   const [rawText, setRawText] = useState("")
   const [sourceType, setSourceType] = useState<SourceType>("twitter")
@@ -60,14 +63,15 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
           youtubeUrl: sourceType === "youtube" ? url : undefined,
         }),
       })
+      const payload: unknown = await response.json().catch(() => null)
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        console.error("Distillation failed:", errorData)
-        throw new Error(errorData.error || "Failed to distill content")
+        const apiError = toApiClientError(response, payload, "Failed to distill content")
+        console.error("Distillation failed:", apiError)
+        throw apiError
       }
 
-      const distilledData = await response.json()
+      const distilledData = payload as KnowledgeEntry["distilled"]
       console.log("Distillation successful:", distilledData)
 
       const newEntry: KnowledgeEntry = {
@@ -85,11 +89,18 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
       onSuccess()
       handleClose()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to distill content.")
+      if (err instanceof ApiClientError) {
+        if (err.code === "UNAUTHORIZED") {
+          router.push("/auth/login")
+        }
+        setError(toUserFacingErrorMessage(err, "Failed to distill content."))
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to distill content.")
+      }
     } finally {
       setIsProcessing(false)
     }
-  }, [author, handleClose, onSuccess, rawText, sourceType, url])
+  }, [author, handleClose, onSuccess, rawText, router, sourceType, url])
 
   const isYouTube = sourceType === "youtube"
   const isSubmitDisabled = isProcessing || (isYouTube ? !url.trim() : !rawText.trim())

@@ -27,6 +27,7 @@ import { BrainCircuitIcon } from "@/components/BrainCircuitIcon"
 import { DashboardSkeleton } from "@/components/ui/skeleton"
 import { getEntries, getAllEntries } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/client"
+import { ApiClientError, toUserFacingErrorMessage } from "@/lib/api/client-errors"
 import type { KnowledgeEntry, FilterState } from "@/types"
 import { useRouter } from "next/navigation"
 
@@ -50,6 +51,7 @@ export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const [queryError, setQueryError] = useState<string | null>(null)
 
     // Filter state
     const [filters, setFilters] = useState<FilterState>({
@@ -94,6 +96,7 @@ export default function DashboardPage() {
 
         try {
             setIsRefreshing(true)
+            setQueryError(null)
             const result = await getEntries({
                 page: currentPage,
                 limit: 20,
@@ -109,11 +112,20 @@ export default function DashboardPage() {
             setPagination(result.pagination)
         } catch (error) {
             console.error("Failed to load entries:", error)
+            if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
+                router.push("/auth/login")
+                return
+            }
+            if (error instanceof ApiClientError) {
+                setQueryError(toUserFacingErrorMessage(error, "Failed to load entries"))
+            } else {
+                setQueryError("Failed to load entries. Please try again.")
+            }
         } finally {
             setIsLoading(false)
             setIsRefreshing(false)
         }
-    }, [currentPage, filters, isAuthenticated, showLowQuality])
+    }, [currentPage, filters, isAuthenticated, router, showLowQuality])
 
     useEffect(() => {
         if (!isAuthenticated) return
@@ -201,11 +213,21 @@ export default function DashboardPage() {
                         <button
                             onClick={async () => {
                                 try {
+                                    setQueryError(null)
                                     const allEntries = await getAllEntries()
                                     setAllEntriesForContradictions(allEntries)
                                     setIsContradictionModalOpen(true)
                                 } catch (error) {
                                     console.error("Failed to load entries for contradiction analysis:", error)
+                                    if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
+                                        router.push("/auth/login")
+                                        return
+                                    }
+                                    if (error instanceof ApiClientError) {
+                                        setQueryError(toUserFacingErrorMessage(error, "Failed to load entries for contradiction analysis"))
+                                    } else {
+                                        setQueryError("Failed to load entries for contradiction analysis.")
+                                    }
                                 }
                             }}
                             className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-orange-700 bg-orange-50 hover:bg-orange-100 mt-2"
@@ -321,6 +343,11 @@ export default function DashboardPage() {
                             </button>
                         </div>
                     </div>
+                    {queryError ? (
+                        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {queryError}
+                        </div>
+                    ) : null}
 
                     {/* Content Grid */}
                     {pagination.total === 0 && !hasActiveFilters ? (

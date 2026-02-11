@@ -37,24 +37,21 @@ export async function POST(request: NextRequest) {
 
     const parseResult = contradictionsRequestSchema.safeParse(body)
     if (!parseResult.success) {
-      const formattedErrors = parseResult.error.format()
+      const flattenedErrors = parseResult.error.flatten()
       const receivedEntriesCount = Array.isArray((body as { entryIds?: unknown[] })?.entryIds)
         ? (body as { entryIds?: unknown[] }).entryIds!.length
         : 0
       console.error("Contradiction validation failed:", {
-        errors: formattedErrors,
+        errors: flattenedErrors,
         receivedEntriesCount,
-        flattenedErrors: parseResult.error.flatten()
+        flattenedErrors
       })
       
       return errorResponse(
         400,
         "VALIDATION_FAILED",
         "Validation failed",
-        {
-          details: formattedErrors,
-          fieldErrors: parseResult.error.flatten().fieldErrors,
-        }
+        flattenedErrors
       )
     }
 

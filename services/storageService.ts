@@ -6,6 +6,7 @@ import type {
 } from "../types"
 import { createClient } from "@/lib/supabase/client"
 import { createClient as createServerClient } from "@/lib/supabase/server"
+import { toApiClientError } from "@/lib/api/client-errors"
 
 const mapDbRowToEntry = (row: {
   id: string
@@ -260,10 +261,10 @@ export const getEntries = async (
   })
 
   const response = await fetch(`/api/entries?${params.toString()}`)
-  const payload = await response.json().catch(() => null)
+  const payload: unknown = await response.json().catch(() => null)
 
   if (!response.ok) {
-    throw new Error(payload?.error || "Failed to fetch entries")
+    throw toApiClientError(response, payload, "Failed to fetch entries")
   }
 
   return payload as EntrySearchResult
