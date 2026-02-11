@@ -1,4 +1,4 @@
-import type { KnowledgeEntry, Contradiction } from "../types"
+import type { KnowledgeEntry, Contradiction, SourceType } from "../types"
 import { createClient } from "@/lib/supabase/client"
 import { createClient as createServerClient } from "@/lib/supabase/server"
 
@@ -53,6 +53,14 @@ export interface PaginationOptions {
   limit?: number
 }
 
+export interface EntryQueryOptions extends PaginationOptions {
+  searchQuery?: string
+  minQualityScore?: number
+  selectedTags?: string[]
+  sourceFilter?: SourceType | "all"
+  showLowQuality?: boolean
+}
+
 export interface PaginatedResult<T> {
   data: T[]
   pagination: {
@@ -64,53 +72,168 @@ export interface PaginatedResult<T> {
   }
 }
 
-export const getEntries = async (
-  options: PaginationOptions = {}
-): Promise<PaginatedResult<KnowledgeEntry>> => {
-  const { page = 1, limit = 20 } = options
-  const offset = (page - 1) * limit
+export interface EntrySearchResult extends PaginatedResult<KnowledgeEntry> {
+  availableTags: string[]
+}
 
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+const normalizeTag = (tag: string) => tag.trim().toLowerCase()
 
-  if (!user) {
-    return {
-      data: [],
-      pagination: { page, limit, total: 0, totalPages: 0, hasMore: false },
-    }
+const matchesSearchQuery = (entry: KnowledgeEntry, searchQuery: string): boolean => {
+  const q = searchQuery.toLowerCase()
+
+  if (
+    entry.distilled.context.toLowerCase().includes(q) ||
+    entry.author.toLowerCase().includes(q) ||
+    (entry.userNotes || "").toLowerCase().includes(q) ||
+    (entry.rawText || "").toLowerCase().includes(q)
+  ) {
+    return true
   }
 
-  const { count } = await supabase
-    .from("knowledge_entries")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
+  for (const idea of entry.distilled.core_ideas) {
+    if (idea.toLowerCase().includes(q)) return true
+  }
 
-  const total = count ?? 0
-  const totalPages = Math.ceil(total / limit)
+  for (const actionable of entry.distilled.actionables) {
+    if (actionable.toLowerCase().includes(q)) return true
+  }
 
-  const { data, error } = await supabase
-    .from("knowledge_entries")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1)
+  for (const tag of entry.distilled.tags) {
+    if (tag.toLowerCase().includes(q)) return true
+  }
 
-  if (error) throw error
+  return false
+}
 
-  const entries = (data || []).map(mapDbRowToEntry)
+const applyEntryFilters = (
+  entries: KnowledgeEntry[],
+  options: EntryQueryOptions
+): { filteredEntries: KnowledgeEntry[]; availableTags: string[] } => {
+  const searchQuery = options.searchQuery?.trim() || ""
+  const minQualityScore = options.minQualityScore ?? 0
+  const showLowQuality = options.showLowQuality ?? false
+  const sourceFilter = options.sourceFilter ?? "all"
+  const selectedTagKeys = Array.from(
+    new Set((options.selectedTags || []).map(normalizeTag).filter(Boolean))
+  )
+
+  const effectiveMinQualityScore = Math.max(
+    minQualityScore,
+    showLowQuality ? 0 : 40
+  )
+
+  const baseEntries = entries.filter((entry) => {
+    if (entry.distilled.quality_score < effectiveMinQualityScore) return false
+    if (sourceFilter !== "all" && entry.sourceType !== sourceFilter) return false
+    if (searchQuery && !matchesSearchQuery(entry, searchQuery)) return false
+    return true
+  })
+
+  const availableTagMap = new Map<string, string>()
+  baseEntries.forEach((entry) => {
+    entry.distilled.tags.forEach((tag) => {
+      const key = normalizeTag(tag)
+      if (key && !availableTagMap.has(key)) {
+        availableTagMap.set(key, tag)
+      }
+    })
+  })
+  const availableTags = Array.from(availableTagMap.values()).sort((a, b) =>
+    a.localeCompare(b)
+  )
+
+  if (selectedTagKeys.length === 0) {
+    return { filteredEntries: baseEntries, availableTags }
+  }
+
+  const selectedTagSet = new Set(selectedTagKeys)
+  const filteredEntries = baseEntries.filter((entry) =>
+    entry.distilled.tags.some((tag) => selectedTagSet.has(normalizeTag(tag)))
+  )
+
+  return { filteredEntries, availableTags }
+}
+
+const paginateEntries = (
+  entries: KnowledgeEntry[],
+  page: number,
+  limit: number,
+  availableTags: string[]
+): EntrySearchResult => {
+  const total = entries.length
+  const totalPages = total > 0 ? Math.ceil(total / limit) : 0
+  const safePage = totalPages === 0 ? 1 : Math.min(page, totalPages)
+  const offset = (safePage - 1) * limit
+  const data = entries.slice(offset, offset + limit)
 
   return {
-    data: entries,
+    data,
+    availableTags,
     pagination: {
-      page,
+      page: safePage,
       limit,
       total,
       totalPages,
-      hasMore: page < totalPages,
+      hasMore: safePage < totalPages,
     },
   }
+}
+
+export const searchEntriesForUser = async (
+  options: EntryQueryOptions,
+  userId: string,
+  supabaseClient: Awaited<ReturnType<typeof createServerClient>>
+): Promise<EntrySearchResult> => {
+  const page = options.page ?? 1
+  const limit = options.limit ?? 20
+
+  const { data, error } = await supabaseClient
+    .from("knowledge_entries")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+
+  const allEntries = (data || []).map(mapDbRowToEntry)
+  const { filteredEntries, availableTags } = applyEntryFilters(allEntries, options)
+
+  return paginateEntries(filteredEntries, page, limit, availableTags)
+}
+
+export const getEntries = async (
+  options: EntryQueryOptions = {}
+): Promise<EntrySearchResult> => {
+  const {
+    page = 1,
+    limit = 20,
+    searchQuery = "",
+    minQualityScore = 0,
+    selectedTags = [],
+    sourceFilter = "all",
+    showLowQuality = false,
+  } = options
+
+  const params = new URLSearchParams()
+  params.set("page", page.toString())
+  params.set("limit", limit.toString())
+  params.set("searchQuery", searchQuery)
+  params.set("minQualityScore", minQualityScore.toString())
+  params.set("sourceFilter", sourceFilter)
+  params.set("showLowQuality", showLowQuality ? "true" : "false")
+  selectedTags.forEach((tag) => {
+    const trimmed = tag.trim()
+    if (trimmed) params.append("tag", trimmed)
+  })
+
+  const response = await fetch(`/api/entries?${params.toString()}`)
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.error || "Failed to fetch entries")
+  }
+
+  return payload as EntrySearchResult
 }
 
 /**
@@ -118,8 +241,32 @@ export const getEntries = async (
  * Useful for operations that need all entries (like contradiction detection)
  */
 export const getAllEntries = async (): Promise<KnowledgeEntry[]> => {
-  const result = await getEntries({ page: 1, limit: 1000 })
-  return result.data
+  const allEntries: KnowledgeEntry[] = []
+  let page = 1
+  const limit = 200
+
+  while (true) {
+    const result = await getEntries({
+      page,
+      limit,
+      searchQuery: "",
+      minQualityScore: 0,
+      selectedTags: [],
+      sourceFilter: "all",
+      showLowQuality: true,
+    })
+
+    allEntries.push(...result.data)
+    if (!result.pagination.hasMore) break
+
+    page += 1
+    if (page > 100) {
+      console.warn("getAllEntries reached pagination safety limit")
+      break
+    }
+  }
+
+  return allEntries
 }
 
 export const getEntriesByIdsForUser = async (

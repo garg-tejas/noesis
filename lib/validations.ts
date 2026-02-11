@@ -2,6 +2,7 @@ import { z } from "zod"
 
 // Source type enum
 export const sourceTypeSchema = z.enum(["twitter", "blog", "youtube", "other"])
+export const sourceFilterSchema = z.union([sourceTypeSchema, z.literal("all")])
 
 // Distill API request schema
 export const distillRequestSchema = z
@@ -44,6 +45,17 @@ export const contradictionsRequestSchema = z.object({
     }),
 })
 
+export const entriesSearchQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  searchQuery: z.string().trim().max(200).default(""),
+  minQualityScore: z.coerce.number().min(0).max(100).default(0),
+  sourceFilter: sourceFilterSchema.default("all"),
+  showLowQuality: z.boolean().default(false),
+  selectedTags: z.array(z.string().trim().min(1).max(50)).max(50).default([]),
+})
+
 // Type exports
 export type DistillRequest = z.infer<typeof distillRequestSchema>
 export type ContradictionsRequest = z.infer<typeof contradictionsRequestSchema>
+export type EntriesSearchQuery = z.infer<typeof entriesSearchQuerySchema>

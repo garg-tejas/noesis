@@ -31,23 +31,44 @@ import type { KnowledgeEntry, FilterState } from "@/types"
 import { useRouter } from "next/navigation"
 
 export default function DashboardPage() {
+    const router = useRouter()
+
     const [entries, setEntries] = useState<KnowledgeEntry[]>([])
+    const [availableTags, setAvailableTags] = useState<string[]>([])
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
+    })
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [isContradictionModalOpen, setIsContradictionModalOpen] = useState(false)
     const [allEntriesForContradictions, setAllEntriesForContradictions] = useState<KnowledgeEntry[]>([])
     const [userEmail, setUserEmail] = useState<string>("")
     const [isLoading, setIsLoading] = useState(true)
-    const router = useRouter()
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-    // Filter State
+    // Filter state
     const [filters, setFilters] = useState<FilterState>({
         searchQuery: "",
         minQualityScore: 0,
         selectedTags: [],
         sourceFilter: "all",
     })
-
     const [showLowQuality, setShowLowQuality] = useState(false)
+
+    const hasActiveFilters = useMemo(() => {
+        return (
+            filters.searchQuery.trim().length > 0 ||
+            filters.minQualityScore > 0 ||
+            filters.selectedTags.length > 0 ||
+            filters.sourceFilter !== "all" ||
+            showLowQuality
+        )
+    }, [filters, showLowQuality])
 
     useEffect(() => {
         const init = async () => {
@@ -56,25 +77,48 @@ export default function DashboardPage() {
                 data: { user },
             } = await supabase.auth.getUser()
 
-            if (user) {
-                setUserEmail(user.email || "")
-                await refreshData()
-            } else {
+            if (!user) {
                 router.push("/auth/login")
+                setIsLoading(false)
+                return
             }
-            setIsLoading(false)
+
+            setUserEmail(user.email || "")
+            setIsAuthenticated(true)
         }
         init()
-    }, [])
+    }, [router])
 
-    const refreshData = async () => {
+    const refreshData = useCallback(async () => {
+        if (!isAuthenticated) return
+
         try {
-            const result = await getEntries()
+            setIsRefreshing(true)
+            const result = await getEntries({
+                page: currentPage,
+                limit: 20,
+                searchQuery: filters.searchQuery,
+                minQualityScore: filters.minQualityScore,
+                selectedTags: filters.selectedTags,
+                sourceFilter: filters.sourceFilter,
+                showLowQuality,
+            })
+
             setEntries(result.data)
+            setAvailableTags(result.availableTags)
+            setPagination(result.pagination)
         } catch (error) {
             console.error("Failed to load entries:", error)
+        } finally {
+            setIsLoading(false)
+            setIsRefreshing(false)
         }
-    }
+    }, [currentPage, filters, isAuthenticated, showLowQuality])
+
+    useEffect(() => {
+        if (!isAuthenticated) return
+        refreshData()
+    }, [isAuthenticated, refreshData])
 
     const handleLogout = async () => {
         const supabase = createClient()
@@ -83,70 +127,8 @@ export default function DashboardPage() {
         router.refresh()
     }
 
-    // Derive unique tags from data
-    const availableTags = useMemo(() => {
-        const tags = new Set<string>()
-        entries.forEach((e) => e.distilled.tags.forEach((t) => tags.add(t)))
-        return Array.from(tags).sort()
-    }, [entries])
-
-    // Filtering Logic
-    const filteredEntries = useMemo(() => {
-        // Pre-compute Set for O(1) tag lookups
-        const selectedTagsSet = filters.selectedTags.length > 0
-            ? new Set(filters.selectedTags)
-            : null
-        const searchQuery = filters.searchQuery?.toLowerCase() || ""
-
-        return entries.filter((entry) => {
-            // Early exit for quality score
-            if (!showLowQuality && entry.distilled.quality_score < 40) return false
-            if (entry.distilled.quality_score < filters.minQualityScore) return false
-
-            // Early exit for source filter
-            if (filters.sourceFilter !== "all" && entry.sourceType !== filters.sourceFilter) return false
-
-            // O(1) tag lookup using Set
-            if (selectedTagsSet) {
-                const entryTagsSet = new Set(entry.distilled.tags)
-                let hasTag = false
-                for (const tag of selectedTagsSet) {
-                    if (entryTagsSet.has(tag)) {
-                        hasTag = true
-                        break
-                    }
-                }
-                if (!hasTag) return false
-            }
-
-            // Search query matching
-            if (searchQuery) {
-                const contextLower = entry.distilled.context.toLowerCase()
-                const authorLower = entry.author.toLowerCase()
-                const userNotesLower = entry.userNotes?.toLowerCase() || ""
-
-                // Check context and author first (cheaper)
-                if (contextLower.includes(searchQuery) || authorLower.includes(searchQuery) || userNotesLower.includes(searchQuery)) {
-                    return true
-                }
-
-                // Then check arrays
-                for (const idea of entry.distilled.core_ideas) {
-                    if (idea.toLowerCase().includes(searchQuery)) return true
-                }
-
-                for (const tag of entry.distilled.tags) {
-                    if (tag.toLowerCase().includes(searchQuery)) return true
-                }
-
-                return false
-            }
-
-            return true
-        })
-    }, [entries, filters, showLowQuality])
-
     const toggleTag = useCallback((tag: string) => {
+        setCurrentPage(1)
         setFilters((prev) => {
             const selectedTagsSet = new Set(prev.selectedTags)
             if (selectedTagsSet.has(tag)) {
@@ -181,25 +163,37 @@ export default function DashboardPage() {
                     {/* Main Navigation */}
                     <nav className="space-y-1">
                         <button
-                            onClick={() => setFilters((f) => ({ ...f, sourceFilter: "all" }))}
+                            onClick={() => {
+                                setCurrentPage(1)
+                                setFilters((f) => ({ ...f, sourceFilter: "all" }))
+                            }}
                             className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${filters.sourceFilter === "all" ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50"}`}
                         >
                             <Layout className="w-4 h-4" /> All Knowledge
                         </button>
                         <button
-                            onClick={() => setFilters((f) => ({ ...f, sourceFilter: "twitter" }))}
+                            onClick={() => {
+                                setCurrentPage(1)
+                                setFilters((f) => ({ ...f, sourceFilter: "twitter" }))
+                            }}
                             className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${filters.sourceFilter === "twitter" ? "bg-blue-50 text-blue-700" : "text-gray-600 hover:bg-gray-50"}`}
                         >
                             <Twitter className="w-4 h-4" /> Twitter / X
                         </button>
                         <button
-                            onClick={() => setFilters((f) => ({ ...f, sourceFilter: "blog" }))}
+                            onClick={() => {
+                                setCurrentPage(1)
+                                setFilters((f) => ({ ...f, sourceFilter: "blog" }))
+                            }}
                             className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${filters.sourceFilter === "blog" ? "bg-purple-50 text-purple-700" : "text-gray-600 hover:bg-gray-50"}`}
                         >
                             <BookOpen className="w-4 h-4" /> Blog Posts
                         </button>
                         <button
-                            onClick={() => setFilters((f) => ({ ...f, sourceFilter: "youtube" }))}
+                            onClick={() => {
+                                setCurrentPage(1)
+                                setFilters((f) => ({ ...f, sourceFilter: "youtube" }))
+                            }}
                             className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${filters.sourceFilter === "youtube" ? "bg-red-50 text-red-700" : "text-gray-600 hover:bg-gray-50"}`}
                         >
                             <Youtube className="w-4 h-4" /> YouTube Videos
@@ -232,19 +226,25 @@ export default function DashboardPage() {
                             max="100"
                             step="5"
                             value={filters.minQualityScore}
-                            onChange={(e) => setFilters((f) => ({ ...f, minQualityScore: parseFloat(e.target.value) }))}
+                            onChange={(e) => {
+                                setCurrentPage(1)
+                                setFilters((f) => ({ ...f, minQualityScore: parseFloat(e.target.value) }))
+                            }}
                             className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
                         />
                         <label className="flex items-center gap-2 text-xs">
                             <input
                                 type="checkbox"
                                 checked={showLowQuality}
-                                onChange={(e) => setShowLowQuality(e.target.checked)}
+                                onChange={(e) => {
+                                    setCurrentPage(1)
+                                    setShowLowQuality(e.target.checked)
+                                }}
                                 className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                             />
-                            <label htmlFor="showLow" className="text-xs text-gray-500 cursor-pointer">
+                            <span className="text-xs text-gray-500 cursor-pointer">
                                 Show low quality (&lt;40%)
-                            </label>
+                            </span>
                         </label>
                     </div>
 
@@ -293,9 +293,10 @@ export default function DashboardPage() {
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">Knowledge Base</h1>
                             <p className="text-gray-500 text-sm mt-1">
-                                {filteredEntries.length} {filteredEntries.length === 1 ? "insight" : "insights"}
+                                {pagination.total} {pagination.total === 1 ? "insight" : "insights"}
                                 {filters.searchQuery && ` matching "${filters.searchQuery}"`}
                             </p>
+                            {isRefreshing ? <p className="text-xs text-gray-400 mt-1">Updating results...</p> : null}
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="relative group">
@@ -303,7 +304,10 @@ export default function DashboardPage() {
                                 <input
                                     type="text"
                                     value={filters.searchQuery}
-                                    onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
+                                    onChange={(e) => {
+                                        setCurrentPage(1)
+                                        setFilters((f) => ({ ...f, searchQuery: e.target.value }))
+                                    }}
                                     placeholder="Search ideas..."
                                     className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none shadow-sm transition-all"
                                 />
@@ -319,7 +323,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Content Grid */}
-                    {entries.length === 0 ? (
+                    {pagination.total === 0 && !hasActiveFilters ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-gray-200 rounded-xl bg-white/50">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                 <BrainCircuitIcon className="w-8 h-8 text-gray-400" />
@@ -332,23 +336,51 @@ export default function DashboardPage() {
                                 Add your first item
                             </button>
                         </div>
-                    ) : filteredEntries.length === 0 ? (
+                    ) : pagination.total === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center">
                             <Filter className="w-10 h-10 text-gray-300 mb-3" />
                             <p className="text-gray-500">No items match your filters.</p>
                             <button
-                                onClick={() => setFilters(() => ({ searchQuery: "", minQualityScore: 0, selectedTags: [], sourceFilter: "all" }))}
+                                onClick={() => {
+                                    setCurrentPage(1)
+                                    setShowLowQuality(false)
+                                    setFilters(() => ({ searchQuery: "", minQualityScore: 0, selectedTags: [], sourceFilter: "all" }))
+                                }}
                                 className="mt-2 text-brand-600 text-sm font-medium hover:underline"
                             >
                                 Clear all filters
                             </button>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
-                            {filteredEntries.map((entry) => (
-                                <KnowledgeCard key={entry.id} entry={entry} onUpdate={refreshData} searchQuery={filters.searchQuery} />
-                            ))}
-                        </div>
+                        <>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+                                {entries.map((entry) => (
+                                    <KnowledgeCard key={entry.id} entry={entry} onUpdate={refreshData} searchQuery={filters.searchQuery} />
+                                ))}
+                            </div>
+
+                            {pagination.totalPages > 1 ? (
+                                <div className="flex items-center justify-between py-4 border-t border-gray-200">
+                                    <button
+                                        onClick={() => setCurrentPage(Math.max(pagination.page - 1, 1))}
+                                        disabled={pagination.page <= 1 || isRefreshing}
+                                        className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                    >
+                                        Previous
+                                    </button>
+                                    <p className="text-sm text-gray-600">
+                                        Page {pagination.page} of {pagination.totalPages}
+                                    </p>
+                                    <button
+                                        onClick={() => setCurrentPage(pagination.page + 1)}
+                                        disabled={!pagination.hasMore || isRefreshing}
+                                        className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            ) : null}
+                        </>
                     )}
                 </div>
             </main>
