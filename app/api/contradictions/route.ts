@@ -10,6 +10,7 @@ import { contradictionsRequestSchema } from "@/lib/validations"
 import type { KnowledgeEntry } from "@/types"
 import { errorResponse } from "@/lib/api/errors"
 import { consumeRateLimit, getClientIp } from "@/lib/api/rate-limit"
+import { createRouteLogger } from "@/lib/api/server-log"
 
 const CONTRADICTION_RATE_LIMIT_MAX_REQUESTS = Number.parseInt(
   process.env.CONTRADICTION_RATE_LIMIT_MAX_REQUESTS || "5",
@@ -21,6 +22,9 @@ const CONTRADICTION_RATE_LIMIT_WINDOW_MS = Number.parseInt(
 )
 
 export async function POST(request: NextRequest) {
+  const log = createRouteLogger("/api/contradictions")
+  log.info("request.received")
+
   const supabaseClient = await createClient()
   const {
     data: { user },
@@ -28,6 +32,7 @@ export async function POST(request: NextRequest) {
   } = await supabaseClient.auth.getUser()
 
   if (authError || !user) {
+    log.warn("auth.failed", { durationMs: log.elapsedMs() })
     return errorResponse(401, "UNAUTHORIZED", "Authentication required")
   }
 
@@ -38,6 +43,11 @@ export async function POST(request: NextRequest) {
     windowMs: CONTRADICTION_RATE_LIMIT_WINDOW_MS,
   })
   if (!rateLimitResult.allowed) {
+    log.warn("rate_limit.blocked", {
+      userId: user.id,
+      retryAfterSeconds: rateLimitResult.retryAfterSeconds,
+      durationMs: log.elapsedMs(),
+    })
     return errorResponse(
       429,
       "RATE_LIMITED",
@@ -55,6 +65,10 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY
 
     if (!apiKey) {
+      log.error("config.missing_gemini_api_key", "GEMINI_API_KEY is not configured", {
+        userId: user.id,
+        durationMs: log.elapsedMs(),
+      })
       return errorResponse(500, "CONFIG_ERROR", "GEMINI_API_KEY is not configured")
     }
 
@@ -62,6 +76,10 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json()
     } catch {
+      log.warn("request.bad_json", {
+        userId: user.id,
+        durationMs: log.elapsedMs(),
+      })
       return errorResponse(400, "BAD_REQUEST", "Malformed JSON body")
     }
 
@@ -71,10 +89,10 @@ export async function POST(request: NextRequest) {
       const receivedEntriesCount = Array.isArray((body as { entryIds?: unknown[] })?.entryIds)
         ? (body as { entryIds?: unknown[] }).entryIds!.length
         : 0
-      console.error("Contradiction validation failed:", {
-        errors: flattenedErrors,
+      log.warn("request.validation_failed", {
+        userId: user.id,
         receivedEntriesCount,
-        flattenedErrors
+        durationMs: log.elapsedMs(),
       })
       
       return errorResponse(
@@ -94,6 +112,12 @@ export async function POST(request: NextRequest) {
     )
 
     if (entries.length !== uniqueEntryIds.length) {
+      log.warn("ownership.failed", {
+        userId: user.id,
+        requestedEntries: uniqueEntryIds.length,
+        accessibleEntries: entries.length,
+        durationMs: log.elapsedMs(),
+      })
       return errorResponse(
         403,
         "FORBIDDEN",
@@ -111,8 +135,6 @@ export async function POST(request: NextRequest) {
       apiKey
     )
 
-    console.log(`Found ${contradictions.length} contradictions across ${entries.length} entries`)
-
     const validContradictions = contradictions.filter(
       (contradiction) =>
         contradiction.item1_id !== contradiction.item2_id &&
@@ -120,17 +142,11 @@ export async function POST(request: NextRequest) {
         entriesMap.has(contradiction.item2_id)
     )
     const droppedContradictions = contradictions.length - validContradictions.length
-    if (droppedContradictions > 0) {
-      console.warn(`Dropped ${droppedContradictions} invalid contradictions returned by model`)
-    }
 
     const persistence = await saveContradictionsForUser(
       validContradictions,
       user.id,
       supabaseClient
-    )
-    console.log(
-      `Persisted ${persistence.created} contradictions, skipped ${persistence.skipped} duplicates`
     )
 
     for (const contradiction of validContradictions) {
@@ -154,14 +170,27 @@ export async function POST(request: NextRequest) {
             entry1.author,
             supabaseClient
           )
-
-          console.log(`Saved contradiction notes to entries ${entry1.id} and ${entry2.id}`)
         } catch (error) {
-          console.error(`Failed to save contradiction notes:`, error)
+          log.error("contradiction_note.append_failed", error, {
+            userId: user.id,
+            entry1Id: entry1.id,
+            entry2Id: entry2.id,
+          })
           // Continue with other contradictions even if one fails
         }
       }
     }
+
+    log.info("request.succeeded", {
+      userId: user.id,
+      requestedEntries: uniqueEntryIds.length,
+      modelContradictions: contradictions.length,
+      returnedContradictions: validContradictions.length,
+      persistedCreated: persistence.created,
+      persistedSkipped: persistence.skipped,
+      droppedContradictions,
+      durationMs: log.elapsedMs(),
+    })
 
     return NextResponse.json({
       contradictions: validContradictions,
@@ -172,7 +201,10 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("Contradiction analysis error:", error)
+    log.error("request.failed", error, {
+      userId: user.id,
+      durationMs: log.elapsedMs(),
+    })
     if (error instanceof AIServiceError) {
       if (error.code === "UPSTREAM_TIMEOUT") {
         return errorResponse(504, "UPSTREAM_TIMEOUT", "AI processing timed out. Please try again.")

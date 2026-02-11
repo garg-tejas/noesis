@@ -50,8 +50,6 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
         }
       }
 
-      console.log("Starting distillation...", { sourceType, hasUrl: !!url, textLength: rawText?.length || 0 })
-
       const response = await fetch("/api/distill", {
         method: "POST",
         headers: {
@@ -72,7 +70,6 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
       }
 
       const distilledData = payload as KnowledgeEntry["distilled"]
-      console.log("Distillation successful:", distilledData)
 
       const newEntry: KnowledgeEntry = {
         id: crypto.randomUUID(),

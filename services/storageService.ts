@@ -336,7 +336,6 @@ export const getAllEntries = async (): Promise<KnowledgeEntry[]> => {
 
     page += 1
     if (page > 100) {
-      console.warn("getAllEntries reached pagination safety limit")
       break
     }
   }
@@ -516,7 +515,6 @@ export const appendContradictionNote = async (
     existingNotes.includes(otherEntryId) &&
     existingNotes.includes(contradictionDescription)
   ) {
-    console.log(`Contradiction note already exists for entry ${entryId}`)
     return
   }
 

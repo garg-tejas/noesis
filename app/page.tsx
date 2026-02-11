@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
 
 export default function Page() {
-  const router = useRouter()
   const [isChecking, setIsChecking] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -19,11 +18,8 @@ export default function Page() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (user) {
-        router.push("/dashboard")
-      } else {
-        setIsChecking(false)
-      }
+      setIsAuthenticated(Boolean(user))
+      setIsChecking(false)
     }
     checkAuth()
   }, [])
@@ -50,18 +46,29 @@ export default function Page() {
               <span className="font-display text-2xl font-bold tracking-tight">Noesis</span>
             </div>
             <div className="flex items-center gap-4">
-              <Link
-                href="/auth/login"
-                className="text-sm font-semibold text-foreground/70 hover:text-foreground transition-colors px-4 py-2"
-              >
-                Sign in
-              </Link>
-              <Link href="/auth/sign-up">
-                <Button className="bg-accent hover:bg-accent/90 text-white font-bold border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
-                  Get Started
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link href="/dashboard">
+                  <Button className="bg-accent hover:bg-accent/90 text-white font-bold border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
+                    Open Workspace
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="text-sm font-semibold text-foreground/70 hover:text-foreground transition-colors px-4 py-2"
+                  >
+                    Sign in
+                  </Link>
+                  <Link href="/auth/sign-up">
+                    <Button className="bg-accent hover:bg-accent/90 text-white font-bold border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
+                      Get Started
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -98,24 +105,38 @@ export default function Page() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-12">
-                <Link href="/auth/sign-up">
-                  <Button
-                    size="lg"
-                    className="bg-primary hover:bg-primary/90 text-white font-bold text-lg px-8 py-7 h-auto border-2 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[3px] active:translate-y-[3px]"
-                  >
-                    Start Curating Free
-                    <Sparkles className="w-5 h-5 ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/auth/login">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="text-lg px-8 py-7 h-auto border-2 border-foreground font-bold hover:bg-foreground hover:text-background transition-all"
-                  >
-                    Sign in
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <Link href="/dashboard">
+                    <Button
+                      size="lg"
+                      className="bg-primary hover:bg-primary/90 text-white font-bold text-lg px-8 py-7 h-auto border-2 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[3px] active:translate-y-[3px]"
+                    >
+                      Open Workspace
+                      <Sparkles className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/auth/sign-up">
+                      <Button
+                        size="lg"
+                        className="bg-primary hover:bg-primary/90 text-white font-bold text-lg px-8 py-7 h-auto border-2 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[3px] active:translate-y-[3px]"
+                      >
+                        Start Curating Free
+                        <Sparkles className="w-5 h-5 ml-2" />
+                      </Button>
+                    </Link>
+                    <Link href="/auth/login">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="text-lg px-8 py-7 h-auto border-2 border-foreground font-bold hover:bg-foreground hover:text-background transition-all"
+                      >
+                        Sign in
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
 
               {/* Feature Pills - Neo-brutalist */}
@@ -309,12 +330,12 @@ export default function Page() {
           <p className="text-xl md:text-2xl text-background/80 mb-12 max-w-2xl mx-auto font-medium">
             Join builders and learners creating rigorous personal knowledge systems with Noesis.
           </p>
-          <Link href="/auth/sign-up">
+          <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
             <Button
               size="lg"
               className="bg-primary hover:bg-primary/90 text-white font-bold text-xl px-12 py-8 h-auto border-4 border-background shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] transition-all active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
             >
-              Start Curating Free
+              {isAuthenticated ? "Open Workspace" : "Start Curating Free"}
               <ArrowRight className="w-6 h-6 ml-3" />
             </Button>
           </Link>

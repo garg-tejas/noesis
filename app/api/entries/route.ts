@@ -3,8 +3,12 @@ import { createClient } from "@/lib/supabase/server"
 import { entriesSearchQuerySchema } from "@/lib/validations"
 import { searchEntriesForUser } from "@/services/storageService"
 import { errorResponse } from "@/lib/api/errors"
+import { createRouteLogger } from "@/lib/api/server-log"
 
 export async function GET(request: NextRequest) {
+  const log = createRouteLogger("/api/entries")
+  log.info("request.received")
+
   const supabaseClient = await createClient()
   const {
     data: { user },
@@ -12,6 +16,7 @@ export async function GET(request: NextRequest) {
   } = await supabaseClient.auth.getUser()
 
   if (authError || !user) {
+    log.warn("auth.failed", { durationMs: log.elapsedMs() })
     return errorResponse(401, "UNAUTHORIZED", "Authentication required")
   }
 
@@ -44,6 +49,10 @@ export async function GET(request: NextRequest) {
     })
 
     if (!parseResult.success) {
+      log.warn("request.validation_failed", {
+        userId: user.id,
+        durationMs: log.elapsedMs(),
+      })
       return errorResponse(
         400,
         "VALIDATION_FAILED",
@@ -58,9 +67,20 @@ export async function GET(request: NextRequest) {
       supabaseClient
     )
 
+    log.info("request.succeeded", {
+      userId: user.id,
+      page: parseResult.data.page,
+      limit: parseResult.data.limit,
+      resultCount: result.data.length,
+      total: result.pagination.total,
+      durationMs: log.elapsedMs(),
+    })
     return NextResponse.json(result)
   } catch (error) {
-    console.error("Entries search error:", error)
+    log.error("request.failed", error, {
+      userId: user?.id,
+      durationMs: log.elapsedMs(),
+    })
     return errorResponse(
       500,
       "INTERNAL_ERROR",
@@ -68,4 +88,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-

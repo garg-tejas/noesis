@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { errorResponse } from "@/lib/api/errors"
 import type { ContradictionInsight, KnowledgeEntry } from "@/types"
+import { createRouteLogger } from "@/lib/api/server-log"
 
 type ContradictionRow = {
   id: string
@@ -35,6 +36,9 @@ const getPrimaryCoreIdea = (distilled: EntryLiteRow["distilled"]): string => {
 }
 
 export async function GET(request: NextRequest) {
+  const log = createRouteLogger("/api/contradictions/recent")
+  log.info("request.received")
+
   const supabaseClient = await createClient()
   const {
     data: { user },
@@ -42,6 +46,7 @@ export async function GET(request: NextRequest) {
   } = await supabaseClient.auth.getUser()
 
   if (authError || !user) {
+    log.warn("auth.failed", { durationMs: log.elapsedMs() })
     return errorResponse(401, "UNAUTHORIZED", "Authentication required")
   }
 
@@ -61,6 +66,12 @@ export async function GET(request: NextRequest) {
 
     const rows = (contradictionRows || []) as ContradictionRow[]
     if (rows.length === 0) {
+      log.info("request.succeeded", {
+        userId: user.id,
+        limit,
+        contradictions: 0,
+        durationMs: log.elapsedMs(),
+      })
       return NextResponse.json({ contradictions: [] as ContradictionInsight[] })
     }
 
@@ -109,9 +120,19 @@ export async function GET(request: NextRequest) {
       })
       .filter((item): item is ContradictionInsight => Boolean(item))
 
+    log.info("request.succeeded", {
+      userId: user.id,
+      limit,
+      fetchedRows: rows.length,
+      returnedContradictions: contradictions.length,
+      durationMs: log.elapsedMs(),
+    })
     return NextResponse.json({ contradictions })
   } catch (error) {
-    console.error("Recent contradictions fetch error:", error)
+    log.error("request.failed", error, {
+      userId: user.id,
+      durationMs: log.elapsedMs(),
+    })
     return errorResponse(
       500,
       "INTERNAL_ERROR",

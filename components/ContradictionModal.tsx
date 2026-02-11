@@ -48,12 +48,6 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
     try {
       const entryIds = entries.map((entry) => entry.id)
 
-      // Log payload being sent for debugging
-      console.log("Sending entries for contradiction analysis:", {
-        count: entryIds.length,
-        entryIds,
-      })
-
       const response = await fetch("/api/contradictions", {
         method: "POST",
         headers: {

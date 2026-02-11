@@ -358,11 +358,8 @@ export const findContradictions = async (
 
   const similarGroups = groupEntriesBySimilarity(entries);
 
-  console.log(`Grouped ${entries.length} entries into ${similarGroups.length} similar groups`);
-
   // If no similar groups found, return empty (no point checking unrelated content)
   if (similarGroups.length === 0) {
-    console.log("No similar entries found for contradiction analysis");
     return [];
   }
 
@@ -376,16 +373,12 @@ export const findContradictions = async (
 
     // Skip groups with only one entry (can't have contradictions)
     if (group.length < 2) {
-      console.log(`Skipping group ${i + 1}: only 1 entry`);
       continue;
     }
 
     analyzedGroups += 1;
     const groupTags = group[0].distilled.tags.filter((tag) =>
       group.every((e) => e.distilled.tags.includes(tag))
-    );
-    console.log(
-      `Analyzing group ${i + 1}: ${group.length} entries with shared tags: ${groupTags.join(", ") || "none"}`
     );
 
     // Limit group size to avoid context window issues
@@ -446,10 +439,7 @@ export const findContradictions = async (
       );
 
       if (contradictionsForGroup.length > 0) {
-        console.log(`Found ${contradictionsForGroup.length} contradictions in group ${i + 1}`);
         allContradictions.push(...contradictionsForGroup);
-      } else {
-        console.log(`No contradictions found in group ${i + 1}`);
       }
     } catch (error) {
       const normalized = normalizeAIError(error, `findContradictions-group-${i + 1}`);
@@ -472,4 +462,3 @@ export const findContradictions = async (
 
   return allContradictions;
 };
-

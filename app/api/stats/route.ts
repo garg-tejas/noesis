@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { errorResponse } from "@/lib/api/errors"
 import type { DashboardStats, SourceType, SourceBreakdown, TagCount } from "@/types"
+import { createRouteLogger } from "@/lib/api/server-log"
 
 type EntryStatsRow = {
   source_type: SourceType
@@ -20,6 +21,9 @@ const createSourceBreakdown = (): SourceBreakdown => ({
 })
 
 export async function GET() {
+  const log = createRouteLogger("/api/stats")
+  log.info("request.received")
+
   const supabaseClient = await createClient()
   const {
     data: { user },
@@ -27,6 +31,7 @@ export async function GET() {
   } = await supabaseClient.auth.getUser()
 
   if (authError || !user) {
+    log.warn("auth.failed", { durationMs: log.elapsedMs() })
     return errorResponse(401, "UNAUTHORIZED", "Authentication required")
   }
 
@@ -126,9 +131,18 @@ export async function GET() {
       },
     }
 
+    log.info("request.succeeded", {
+      userId: user.id,
+      totalEntries: response.totalEntries,
+      contradictionCount: response.contradictionCount,
+      durationMs: log.elapsedMs(),
+    })
     return NextResponse.json(response)
   } catch (error) {
-    console.error("Stats fetch error:", error)
+    log.error("request.failed", error, {
+      userId: user.id,
+      durationMs: log.elapsedMs(),
+    })
     return errorResponse(
       500,
       "INTERNAL_ERROR",
