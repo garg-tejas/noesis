@@ -318,7 +318,8 @@ export const getRecentContradictions = async (
 export const getAllEntries = async (): Promise<KnowledgeEntry[]> => {
   const allEntries: KnowledgeEntry[] = []
   let page = 1
-  const limit = 200
+  // Keep in sync with entriesSearchQuerySchema limit max.
+  const limit = 100
 
   while (true) {
     const result = await getEntries({
