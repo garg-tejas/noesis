@@ -2,6 +2,7 @@ import type {
   KnowledgeEntry,
   Contradiction,
   ContradictionRecord,
+  DashboardStats,
   SourceType,
 } from "../types"
 import { createClient } from "@/lib/supabase/client"
@@ -275,6 +276,17 @@ export const getEntries = async (
   }
 
   return payload as EntrySearchResult
+}
+
+export const getDashboardStats = async (): Promise<DashboardStats> => {
+  const response = await fetch("/api/stats")
+  const payload: unknown = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw toApiClientError(response, payload, "Failed to fetch dashboard stats")
+  }
+
+  return payload as DashboardStats
 }
 
 /**

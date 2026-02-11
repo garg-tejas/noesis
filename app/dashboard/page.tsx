@@ -25,10 +25,10 @@ const ContradictionModal = dynamic(() => import("@/components/ContradictionModal
 })
 import { BrainCircuitIcon } from "@/components/BrainCircuitIcon"
 import { DashboardSkeleton } from "@/components/ui/skeleton"
-import { getEntries, getAllEntries } from "@/services/storageService"
+import { getEntries, getAllEntries, getDashboardStats } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/client"
 import { ApiClientError, toUserFacingErrorMessage } from "@/lib/api/client-errors"
-import type { KnowledgeEntry, FilterState } from "@/types"
+import type { KnowledgeEntry, FilterState, DashboardStats } from "@/types"
 import { useRouter } from "next/navigation"
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -54,6 +54,8 @@ export default function DashboardPage() {
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [queryError, setQueryError] = useState<string | null>(null)
+    const [statsError, setStatsError] = useState<string | null>(null)
+    const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
 
     // Filter state
     const [filters, setFilters] = useState<FilterState>({
@@ -170,16 +172,47 @@ export default function DashboardPage() {
         showLowQuality,
     ])
 
+    const refreshStats = useCallback(async () => {
+        if (!isAuthenticated) return
+
+        try {
+            setStatsError(null)
+            const stats = await getDashboardStats()
+            setDashboardStats(stats)
+        } catch (error) {
+            console.error("Failed to load dashboard stats:", error)
+            if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
+                router.push("/auth/login")
+                return
+            }
+            if (error instanceof ApiClientError) {
+                setStatsError(toUserFacingErrorMessage(error, "Unable to load dashboard insights right now."))
+            } else {
+                setStatsError("Unable to load dashboard insights right now.")
+            }
+        }
+    }, [isAuthenticated, router])
+
     useEffect(() => {
         if (!isAuthenticated) return
         refreshData()
     }, [isAuthenticated, refreshData])
 
     useEffect(() => {
+        if (!isAuthenticated) return
+        refreshStats()
+    }, [isAuthenticated, refreshStats])
+
+    useEffect(() => {
         return () => {
             entriesAbortControllerRef.current?.abort()
         }
     }, [])
+
+    const handleDataMutation = useCallback(() => {
+        void refreshData()
+        void refreshStats()
+    }, [refreshData, refreshStats])
 
     const handleLogout = async () => {
         const supabase = createClient()
@@ -397,6 +430,64 @@ export default function DashboardPage() {
                             {queryError}
                         </div>
                     ) : null}
+                    {statsError ? (
+                        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            {statsError}
+                        </div>
+                    ) : null}
+
+                    <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Total Insights</p>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900">{dashboardStats?.totalEntries ?? 0}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Avg Quality</p>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900">{dashboardStats?.averageQualityScore ?? 0}%</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Favorites</p>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900">{dashboardStats?.favoriteEntries ?? 0}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Contradictions Tracked</p>
+                            <p className="mt-2 text-2xl font-semibold text-gray-900">{dashboardStats?.contradictionCount ?? 0}</p>
+                        </div>
+                    </div>
+
+                    <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Source Mix</p>
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                                <div className="rounded-md bg-blue-50 px-3 py-2 text-blue-700">Twitter: {dashboardStats?.sourceBreakdown.twitter ?? 0}</div>
+                                <div className="rounded-md bg-purple-50 px-3 py-2 text-purple-700">Blog: {dashboardStats?.sourceBreakdown.blog ?? 0}</div>
+                                <div className="rounded-md bg-red-50 px-3 py-2 text-red-700">YouTube: {dashboardStats?.sourceBreakdown.youtube ?? 0}</div>
+                                <div className="rounded-md bg-gray-100 px-3 py-2 text-gray-700">Other: {dashboardStats?.sourceBreakdown.other ?? 0}</div>
+                            </div>
+                            <p className="mt-3 text-xs text-gray-500">
+                                Quality bands: high {dashboardStats?.qualityBands.high ?? 0}, medium {dashboardStats?.qualityBands.medium ?? 0}, low {dashboardStats?.qualityBands.low ?? 0}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Top Tags</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {(dashboardStats?.topTags || []).length === 0 ? (
+                                    <span className="text-sm text-gray-400 italic">No tags yet</span>
+                                ) : (
+                                    (dashboardStats?.topTags || []).map((item) => (
+                                        <span
+                                            key={item.tag}
+                                            className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700"
+                                        >
+                                            <span>{item.tag}</span>
+                                            <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">{item.count}</span>
+                                        </span>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Content Grid */}
                     {pagination.total === 0 && !hasActiveFilters ? (
@@ -431,7 +522,7 @@ export default function DashboardPage() {
                         <>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
                                 {entries.map((entry) => (
-                                    <KnowledgeCard key={entry.id} entry={entry} onUpdate={refreshData} searchQuery={filters.searchQuery} />
+                                    <KnowledgeCard key={entry.id} entry={entry} onUpdate={handleDataMutation} searchQuery={filters.searchQuery} />
                                 ))}
                             </div>
 
@@ -461,13 +552,14 @@ export default function DashboardPage() {
                 </div>
             </main>
 
-            <IngestionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={refreshData} />
+            <IngestionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={handleDataMutation} />
             <ContradictionModal
                 isOpen={isContradictionModalOpen}
                 onClose={() => {
                     setIsContradictionModalOpen(false)
                     setAllEntriesForContradictions([])
                 }}
+                onAnalyzed={handleDataMutation}
                 entries={allEntriesForContradictions}
             />
         </div>

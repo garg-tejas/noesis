@@ -11,9 +11,10 @@ interface ContradictionModalProps {
   isOpen: boolean
   onClose: () => void
   entries: KnowledgeEntry[]
+  onAnalyzed?: () => void
 }
 
-const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose, entries }) => {
+const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose, entries, onAnalyzed }) => {
   const router = useRouter()
   const [contradictions, setContradictions] = useState<Contradiction[]>([])
   const [loading, setLoading] = useState(false)
@@ -70,6 +71,7 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
 
       const data = payload as { contradictions?: Contradiction[] }
       setContradictions(data.contradictions || [])
+      onAnalyzed?.()
     } catch (e) {
       console.error("Contradiction analysis error:", e)
       if (e instanceof ApiClientError) {

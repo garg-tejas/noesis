@@ -42,6 +42,34 @@ export interface ContradictionRecord {
   createdAt: string;
 }
 
+export interface SourceBreakdown {
+  twitter: number;
+  blog: number;
+  youtube: number;
+  other: number;
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+export interface QualityBands {
+  high: number;
+  medium: number;
+  low: number;
+}
+
+export interface DashboardStats {
+  totalEntries: number;
+  favoriteEntries: number;
+  contradictionCount: number;
+  averageQualityScore: number;
+  sourceBreakdown: SourceBreakdown;
+  topTags: TagCount[];
+  qualityBands: QualityBands;
+}
+
 export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
