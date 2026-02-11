@@ -110,6 +110,10 @@ export interface EntrySearchResult extends PaginatedResult<KnowledgeEntry> {
   availableTags: string[]
 }
 
+export interface EntriesRequestOptions {
+  signal?: AbortSignal
+}
+
 const normalizeTag = (tag: string) => tag.trim().toLowerCase()
 
 const matchesSearchQuery = (entry: KnowledgeEntry, searchQuery: string): boolean => {
@@ -236,7 +240,8 @@ export const searchEntriesForUser = async (
 }
 
 export const getEntries = async (
-  options: EntryQueryOptions = {}
+  options: EntryQueryOptions = {},
+  requestOptions: EntriesRequestOptions = {}
 ): Promise<EntrySearchResult> => {
   const {
     page = 1,
@@ -260,7 +265,9 @@ export const getEntries = async (
     if (trimmed) params.append("tag", trimmed)
   })
 
-  const response = await fetch(`/api/entries?${params.toString()}`)
+  const response = await fetch(`/api/entries?${params.toString()}`, {
+    signal: requestOptions.signal,
+  })
   const payload: unknown = await response.json().catch(() => null)
 
   if (!response.ok) {

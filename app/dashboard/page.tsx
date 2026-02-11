@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import {
     Search,
     Filter,
@@ -30,6 +30,8 @@ import { createClient } from "@/lib/supabase/client"
 import { ApiClientError, toUserFacingErrorMessage } from "@/lib/api/client-errors"
 import type { KnowledgeEntry, FilterState } from "@/types"
 import { useRouter } from "next/navigation"
+
+const SEARCH_DEBOUNCE_MS = 300
 
 export default function DashboardPage() {
     const router = useRouter()
@@ -61,6 +63,9 @@ export default function DashboardPage() {
         sourceFilter: "all",
     })
     const [showLowQuality, setShowLowQuality] = useState(false)
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+    const entriesRequestIdRef = useRef(0)
+    const entriesAbortControllerRef = useRef<AbortController | null>(null)
 
     const hasActiveFilters = useMemo(() => {
         return (
@@ -91,26 +96,53 @@ export default function DashboardPage() {
         init()
     }, [router])
 
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setDebouncedSearchQuery(filters.searchQuery.trim())
+        }, SEARCH_DEBOUNCE_MS)
+
+        return () => clearTimeout(timeoutId)
+    }, [filters.searchQuery])
+
     const refreshData = useCallback(async () => {
         if (!isAuthenticated) return
+
+        const requestId = entriesRequestIdRef.current + 1
+        entriesRequestIdRef.current = requestId
+        entriesAbortControllerRef.current?.abort()
+
+        const abortController = new AbortController()
+        entriesAbortControllerRef.current = abortController
 
         try {
             setIsRefreshing(true)
             setQueryError(null)
+
             const result = await getEntries({
                 page: currentPage,
                 limit: 20,
-                searchQuery: filters.searchQuery,
+                searchQuery: debouncedSearchQuery,
                 minQualityScore: filters.minQualityScore,
                 selectedTags: filters.selectedTags,
                 sourceFilter: filters.sourceFilter,
                 showLowQuality,
+            }, {
+                signal: abortController.signal,
             })
+
+            if (requestId !== entriesRequestIdRef.current || abortController.signal.aborted) {
+                return
+            }
 
             setEntries(result.data)
             setAvailableTags(result.availableTags)
             setPagination(result.pagination)
         } catch (error) {
+            const isAbortError = error instanceof DOMException && error.name === "AbortError"
+            if (isAbortError || abortController.signal.aborted || requestId !== entriesRequestIdRef.current) {
+                return
+            }
+
             console.error("Failed to load entries:", error)
             if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
                 router.push("/auth/login")
@@ -122,15 +154,32 @@ export default function DashboardPage() {
                 setQueryError("Failed to load entries. Please try again.")
             }
         } finally {
-            setIsLoading(false)
-            setIsRefreshing(false)
+            if (requestId === entriesRequestIdRef.current) {
+                setIsLoading(false)
+                setIsRefreshing(false)
+            }
         }
-    }, [currentPage, filters, isAuthenticated, router, showLowQuality])
+    }, [
+        currentPage,
+        debouncedSearchQuery,
+        filters.minQualityScore,
+        filters.selectedTags,
+        filters.sourceFilter,
+        isAuthenticated,
+        router,
+        showLowQuality,
+    ])
 
     useEffect(() => {
         if (!isAuthenticated) return
         refreshData()
     }, [isAuthenticated, refreshData])
+
+    useEffect(() => {
+        return () => {
+            entriesAbortControllerRef.current?.abort()
+        }
+    }, [])
 
     const handleLogout = async () => {
         const supabase = createClient()
