@@ -2,6 +2,28 @@ import type { KnowledgeEntry, Contradiction } from "../types"
 import { createClient } from "@/lib/supabase/client"
 import { createClient as createServerClient } from "@/lib/supabase/server"
 
+const mapDbRowToEntry = (row: {
+  id: string
+  source_type: KnowledgeEntry["sourceType"]
+  original_url: string
+  author: string
+  raw_text: string | null
+  distilled: KnowledgeEntry["distilled"]
+  created_at: string
+  is_favorite: boolean
+  user_notes: string | null
+}): KnowledgeEntry => ({
+  id: row.id,
+  sourceType: row.source_type,
+  originalUrl: row.original_url,
+  author: row.author,
+  rawText: row.raw_text ?? undefined,
+  distilled: row.distilled,
+  createdAt: new Date(row.created_at).getTime(),
+  isFavorite: row.is_favorite,
+  userNotes: row.user_notes ?? undefined,
+})
+
 export const saveEntry = async (entry: KnowledgeEntry): Promise<void> => {
   const supabase = createClient()
   const {
@@ -77,17 +99,7 @@ export const getEntries = async (
 
   if (error) throw error
 
-  const entries = (data || []).map((row) => ({
-    id: row.id,
-    sourceType: row.source_type,
-    originalUrl: row.original_url,
-    author: row.author,
-    rawText: row.raw_text,
-    distilled: row.distilled,
-    createdAt: new Date(row.created_at).getTime(),
-    isFavorite: row.is_favorite,
-    userNotes: row.user_notes,
-  }))
+  const entries = (data || []).map(mapDbRowToEntry)
 
   return {
     data: entries,
@@ -108,6 +120,24 @@ export const getEntries = async (
 export const getAllEntries = async (): Promise<KnowledgeEntry[]> => {
   const result = await getEntries({ page: 1, limit: 1000 })
   return result.data
+}
+
+export const getEntriesByIdsForUser = async (
+  entryIds: string[],
+  userId: string,
+  supabaseClient: Awaited<ReturnType<typeof createServerClient>>
+): Promise<KnowledgeEntry[]> => {
+  if (entryIds.length === 0) return []
+
+  const uniqueEntryIds = Array.from(new Set(entryIds))
+  const { data, error } = await supabaseClient
+    .from("knowledge_entries")
+    .select("*")
+    .eq("user_id", userId)
+    .in("id", uniqueEntryIds)
+
+  if (error) throw error
+  return (data || []).map(mapDbRowToEntry)
 }
 
 export const deleteEntry = async (id: string): Promise<void> => {

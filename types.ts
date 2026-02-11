@@ -35,6 +35,7 @@ export interface Contradiction {
 
 export type ApiErrorCode =
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "VALIDATION_FAILED"
   | "BAD_REQUEST"
   | "CONFIG_ERROR"

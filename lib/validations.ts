@@ -33,25 +33,15 @@ export const distilledContentSchema = z.object({
   quality_score: z.number().min(0).max(100),
 })
 
-// Knowledge entry schema (for contradiction detection)
-export const knowledgeEntrySchema = z.object({
-  id: z.string().uuid(),
-  sourceType: sourceTypeSchema,
-  originalUrl: z.string(),
-  author: z.string(),
-  rawText: z.string().nullish(),
-  distilled: distilledContentSchema,
-  createdAt: z.number(),
-  isFavorite: z.boolean(),
-  userNotes: z.string().nullish(),
-})
-
 // Contradictions API request schema
 export const contradictionsRequestSchema = z.object({
-  entries: z
-    .array(knowledgeEntrySchema)
+  entryIds: z
+    .array(z.string().uuid("Invalid entry ID"))
     .min(2, "At least 2 entries required for contradiction detection")
-    .max(100, "Too many entries (max 100)"),
+    .max(100, "Too many entries (max 100)")
+    .refine((entryIds) => new Set(entryIds).size === entryIds.length, {
+      message: "Duplicate entry IDs are not allowed",
+    }),
 })
 
 // Type exports

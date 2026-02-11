@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { findContradictions } from "@/services/geminiService"
-import { appendContradictionNote } from "@/services/storageService"
+import { appendContradictionNote, getEntriesByIdsForUser } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/server"
 import { contradictionsRequestSchema } from "@/lib/validations"
 import type { KnowledgeEntry } from "@/types"
@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
     const parseResult = contradictionsRequestSchema.safeParse(body)
     if (!parseResult.success) {
       const formattedErrors = parseResult.error.format()
-      const receivedEntriesCount = Array.isArray((body as { entries?: unknown[] })?.entries)
-        ? (body as { entries?: unknown[] }).entries!.length
+      const receivedEntriesCount = Array.isArray((body as { entryIds?: unknown[] })?.entryIds)
+        ? (body as { entryIds?: unknown[] }).entryIds!.length
         : 0
       console.error("Contradiction validation failed:", {
         errors: formattedErrors,
@@ -54,15 +54,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { entries } = parseResult.data
+    const { entryIds } = parseResult.data
+    const uniqueEntryIds = Array.from(new Set(entryIds))
+    const entries = await getEntriesByIdsForUser(
+      uniqueEntryIds,
+      user.id,
+      supabaseClient
+    )
+
+    if (entries.length !== uniqueEntryIds.length) {
+      return errorResponse(
+        403,
+        "FORBIDDEN",
+        "One or more entries are inaccessible for this user"
+      )
+    }
 
     const entriesMap = new Map<string, KnowledgeEntry>()
-    ;(entries as KnowledgeEntry[]).forEach((entry) => {
+    entries.forEach((entry) => {
       entriesMap.set(entry.id, entry)
     })
 
     const contradictions = await findContradictions(
-      entries as KnowledgeEntry[],
+      entries,
       apiKey
     )
 

@@ -27,20 +27,12 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
     setLoading(true)
     setError(null)
     try {
-      // Log entries being sent for debugging
+      const entryIds = entries.map((entry) => entry.id)
+
+      // Log payload being sent for debugging
       console.log("Sending entries for contradiction analysis:", {
-        count: entries.length,
-        entries: entries.map(e => ({
-          id: e.id,
-          idType: typeof e.id,
-          isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.id),
-          sourceType: e.sourceType,
-          hasDistilled: !!e.distilled,
-          hasAuthor: !!e.author,
-          hasOriginalUrl: !!e.originalUrl,
-          createdAtType: typeof e.createdAt,
-          isFavoriteType: typeof e.isFavorite,
-        }))
+        count: entryIds.length,
+        entryIds,
       })
 
       const response = await fetch("/api/contradictions", {
@@ -48,14 +40,13 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ entries }),
+        body: JSON.stringify({ entryIds }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
         console.error("Contradiction API error:", errorData)
-
-        throw new Error("Unable to analyze contradictions. Please try again or contact support if the issue persists.")
+        throw new Error(errorData.error || "Unable to analyze contradictions. Please try again.")
       }
 
       const data = await response.json()
