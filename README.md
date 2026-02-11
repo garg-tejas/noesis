@@ -1,169 +1,169 @@
-# Noesis 🧠
+# Noesis
 
-I kept saving tweets and articles to read later and never actually reading them. So I built this to help me actually remember the stuff I save.
+**Turn saved content into remembered knowledge.**
 
-Basically it uses AI to pull out the important bits from things I read and puts them somewhere I can search through later.
-
-## What it does
-
-**Content stuff**
-
-- You paste in a tweet thread, blog post or YT link
-- AI figures out what the main ideas are
-- It scores how useful the content is (filters out fluff)
-- Auto-tags things so you can find them
-
-**Search**
-
-- Search through everything you've saved
-- Filter by tags
-- There's a slider to only show high-quality stuff
-
-**Contradiction finder**
-
-- This one's cool - it finds places where your saved notes contradict each other
-- Only compares related topics (so it won't flag a cooking post vs a programming post)
-- Adds the contradictions right into your notes
-
-**Notes**
-
-- You can add your own thoughts to entries
-- They stick around with the entry
-
-**Favorites**
-
-- Star the important ones
-- Browse through them in a card layout
+Noesis extracts high-signal ideas from tweets, articles, and videos, stores them as searchable insights, and flags contradictions across what you’ve saved—so you don’t accumulate unread links or internalize conflicting information.
 
 ---
 
-## Getting it running
-
-You'll need:
-
-- Node.js (18 or newer)
-- pnpm
-- Supabase account (free tier works)
-- Gemini API key
+## Quick Start
 
 ```bash
 git clone https://github.com/garg-tejas/noesis.git
 cd noesis
 pnpm install
-```
 
-Make a `.env.local` file:
+cp .env.example .env.local
+# fill in API keys
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL=http://localhost:3000
-NEXT_PUBLIC_GEMINI_MODEL=gemini-2.5-flash
-GEMINI_API_KEY=your_gemini_api_key
-```
+# Run SQL files in scripts/ using Supabase SQL editor
 
-Run the SQL files in the `scripts/` folder to set up your database.
-
-Then:
-
-```bash
 pnpm dev
 ```
 
-Go to `http://localhost:3000` and you should be good.
+Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## How it works
+## Problem
 
-When you add something new:
+Saving content is frictionless. Understanding and retaining it isn’t.
 
-1. Sends the text to Gemini
-2. Pulls out the actual ideas (removes the fluff)
-3. Makes up some questions and key takeaways
-4. Scores how information-dense it is
-5. Auto-tags it
-6. Saves to Supabase
+Articles, threads, and videos accumulate faster than they can be read, revisited, or reconciled. Even when content is consumed, key ideas fade and contradictions go unnoticed.
 
-Then you can search through it immediately.
+**Noesis focuses on three failures of “read later” workflows:**
 
-**The contradiction thing:**
-
-It only compares entries that are about similar topics. So if you have two blog posts about reinforcement learning that say different things, it'll catch that. But it won't compare a RL post to something random about philosophy.
+* High-value insights are buried among low-signal content
+* Knowledge is stored but not retrievable
+* Conflicting ideas accumulate without being surfaced
 
 ---
 
-## Tech stuff
+## What Noesis Does
 
-- Next.js with the App Router
-- Supabase for the database
-- Gemini API for the AI part
-- Tailwind CSS + Radix UI components
-- TypeScript
-- Deployed on Vercel
+### Content Distillation
 
----
+* Accepts tweet threads, blog posts, and YouTube transcripts
+* Extracts core ideas while filtering filler
+* Generates key takeaways and questions
+* Assigns an information-density score (1–10)
+* Auto-tags entries for retrieval
 
-## Using it
+### Search & Retrieval
 
-**Adding stuff:**
+* Full-text search across all saved content
+* Filter by tag, source, or quality threshold
+* Quality slider to hide low-signal entries
 
-- Click "Distill New"
-- Pick if it's a tweet, blog post or yt video
-- Paste the content
-- Save it
+### Contradiction Detection
 
-**Finding things:**
+* Detects conflicting claims across saved content
+* Comparisons are limited to **semantically related topics**
+* Contradictions are attached directly to affected entries
+* Designed to surface tension—not automatically resolve it
 
-- Search bar for keywords
-- Filter by tags or source type
-- Quality slider if you only want the good stuff
+### Personal Knowledge Layer
 
-**Finding contradictions:**
-
-- Hit "Find Contradictions"
-- It'll show you entries that clash
-- You can add notes to resolve them
+* Attach personal notes and reflections
+* Star high-value entries
+* Dedicated favorites view for fast review
 
 ---
 
-## Project structure
+## Key Design Decisions
+
+* **Quality over completeness**
+  Not all content deserves equal retention; scoring and filtering are first-class.
+
+* **Constrained semantic comparison**
+  Contradictions are only checked within related topics to reduce cost and false positives.
+
+* **Ingestion-time processing**
+  Expensive AI work happens upfront so search stays fast and predictable.
+
+* **Single-user scope**
+  Optimized for individual knowledge building, not collaboration.
+
+---
+
+## How It Works
+
+**Ingestion Pipeline**
+
+1. User submits content (URL or text)
+2. Gemini extracts core concepts and claims
+3. Content is scored, tagged, and summarized
+4. Data is stored in Supabase with full-text indexing
+
+**Contradiction Detection**
+
+* Entries are compared only when topic similarity exceeds a threshold
+* Example: conflicting claims across AI articles are flagged
+* Unrelated domains are never compared (e.g., cooking vs. programming)
+
+---
+
+## Tech Stack
+
+* **Framework:** Next.js 14 (App Router)
+* **Language:** TypeScript
+* **Database:** Supabase (Postgres + RLS)
+* **AI:** Gemini 2.5 Flash
+* **Styling:** Tailwind CSS + Radix UI
+* **Deployment:** Vercel
+
+---
+
+## Limitations
+
+* No PDF or academic paper support
+* Contradictions require human judgment to resolve
+* Quality scoring is model-dependent and subjective
+* Optimized for personal-scale datasets
+
+---
+
+## Project Structure
 
 ```
 noesis/
-├── app/              # Next.js pages
-├── components/       # React components
-├── services/         # API calls and business logic
-├── lib/              # utility functions
-└── scripts/          # database setup
+├── app/              # Routes and layouts
+├── components/       # UI and feature components
+├── services/         # AI + database orchestration
+├── lib/              # Shared utilities
+├── types/            # Type definitions
+└── scripts/          # Database migrations
 ```
 
-There's comments in the code if you want more details.
+---
+
+## Privacy & Security
+
+* All data lives in your own Supabase instance
+* Row-level security enabled on all tables
+* API keys never exposed client-side
+* Content is sent to Gemini only for processing (no long-term storage)
 
 ---
 
-## Privacy
+## Philosophy
 
-Everything stays in your own Supabase database. Row-level security is turned on so nobody else can see your data. API keys are server-side only.
+*Noesis* refers to understanding through direct insight.
 
----
+This tool doesn’t replace reading. It helps you decide:
 
-## Deploying
+* What deserves deep attention
+* What can be skimmed or discarded
+* Where your understanding conflicts with itself
 
-Should be pretty straightforward on Vercel:
-
-- Push to GitHub
-- Import the repo in Vercel
-- Add your environment variables
-- Update the redirect URLs in Supabase settings
-- Deploy
+Saving is easy. Understanding is not.
 
 ---
 
-## Why "Noesis"?
+## Roadmap (Non-Commitment)
 
-It's a Greek philosophy term that means understanding through direct insight.
-
-The whole point isn't to replace actually reading things - it's more about helping you figure out what's worth reading deeply vs what you can skim or skip entirely.
-
-Saving bookmarks is easy. Actually understanding and remembering what you read is hard. This is supposed to help with that.
+* PDF and academic paper ingestion
+* Knowledge graph visualization
+* Spaced repetition for high-value content
+* Export to Obsidian / Notion
+* Browser extension for capture
