@@ -16,12 +16,27 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
   const [loading, setLoading] = useState(false)
   const [analyzed, setAnalyzed] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dataVersion, setDataVersion] = useState(0)
 
   useEffect(() => {
-    if (isOpen && !analyzed && entries.length >= 2) {
+    if (!isOpen) {
+      setAnalyzed(false)
+      setContradictions([])
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    if (!analyzed && entries.length >= 2) {
       analyze()
     }
-  }, [isOpen, entries.length])
+  }, [isOpen, analyzed, entries.length, dataVersion])
+
+  useEffect(() => {
+    if (!isOpen) return
+    setDataVersion((prev) => prev + 1)
+    setAnalyzed(false)
+  }, [entries, isOpen])
 
   const analyze = async () => {
     setLoading(true)
@@ -72,7 +87,16 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
             <GitCompareArrows className="w-5 h-5 text-orange-600" />
             Contradiction Analysis
           </h2>
-          <button onClick={onClose} className="text-orange-400 hover:text-orange-600 transition-colors">
+          <button
+            onClick={() => {
+              setAnalyzed(false)
+              setContradictions([])
+              setError(null)
+              setLoading(false)
+              onClose()
+            }}
+            className="text-orange-400 hover:text-orange-600 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -166,7 +190,13 @@ const ContradictionModal: React.FC<ContradictionModalProps> = ({ isOpen, onClose
 
         <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
           <button
-            onClick={onClose}
+            onClick={() => {
+              setAnalyzed(false)
+              setContradictions([])
+              setError(null)
+              setLoading(false)
+              onClose()
+            }}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg transition-colors"
           >
             Close

@@ -356,7 +356,10 @@ export default function DashboardPage() {
             <IngestionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={refreshData} />
             <ContradictionModal
                 isOpen={isContradictionModalOpen}
-                onClose={() => setIsContradictionModalOpen(false)}
+                onClose={() => {
+                    setIsContradictionModalOpen(false)
+                    setAllEntriesForContradictions([])
+                }}
                 entries={allEntriesForContradictions}
             />
         </div>
