@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { dashboardBootstrapQuerySchema } from "@/lib/validations"
 import { searchEntriesForUser } from "@/services/storageService"
-import { computeDashboardStats, fetchRecentContradictionsInsights } from "@/lib/server/dashboard-queries"
+import { computeDashboardStats } from "@/lib/server/dashboard-queries"
 import { errorResponse } from "@/lib/api/errors"
 import { createRouteLogger } from "@/lib/api/server-log"
 
@@ -46,7 +46,6 @@ export async function GET(request: NextRequest) {
     sourceFilter: searchParams.get("sourceFilter") ?? undefined,
     showLowQuality,
     selectedTags: selectedTags.length > 0 ? selectedTags : undefined,
-    recentLimit: searchParams.get("recentLimit") ?? undefined,
   })
 
   if (!parseResult.success) {
@@ -57,13 +56,12 @@ export async function GET(request: NextRequest) {
     return errorResponse(400, "VALIDATION_FAILED", "Invalid query parameters", parseResult.error.flatten())
   }
 
-  const { recentLimit, ...entryQuery } = parseResult.data
+  const entryQuery = parseResult.data
 
   try {
-    const [entries, stats, recentContradictions] = await Promise.all([
+    const [entries, stats] = await Promise.all([
       searchEntriesForUser(entryQuery, user.id, supabaseClient),
       computeDashboardStats(supabaseClient, user.id),
-      fetchRecentContradictionsInsights(supabaseClient, user.id, recentLimit),
     ])
 
     log.info("request.succeeded", {
@@ -76,7 +74,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       entries,
       stats,
-      recentContradictions,
     })
   } catch (error) {
     log.error("request.failed", error, {

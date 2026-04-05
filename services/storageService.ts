@@ -391,11 +391,10 @@ export const getRecentContradictions = async (
 export interface DashboardBootstrapResult {
   entries: EntrySearchResult
   stats: DashboardStats
-  recentContradictions: ContradictionInsight[]
 }
 
 export const getDashboardBootstrap = async (
-  options: EntryQueryOptions & { recentLimit?: number } = {},
+  options: EntryQueryOptions = {},
   requestOptions: EntriesRequestOptions = {}
 ): Promise<DashboardBootstrapResult> => {
   const {
@@ -406,7 +405,6 @@ export const getDashboardBootstrap = async (
     selectedTags = [],
     sourceFilter = "all",
     showLowQuality = false,
-    recentLimit = 6,
   } = options
 
   const params = new URLSearchParams()
@@ -416,7 +414,6 @@ export const getDashboardBootstrap = async (
   params.set("minQualityScore", minQualityScore.toString())
   params.set("sourceFilter", sourceFilter)
   params.set("showLowQuality", showLowQuality ? "true" : "false")
-  params.set("recentLimit", String(recentLimit))
   selectedTags.forEach((tag) => {
     const trimmed = tag.trim()
     if (trimmed) params.append("tag", trimmed)

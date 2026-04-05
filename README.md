@@ -6,6 +6,12 @@
 
 Noesis turns scattered tweets, blogs, and videos into structured knowledge you can retrieve quickly and challenge for contradictions.
 
+### Example: Contradiction
+
+![Contradiction detection example](.github/assets/contradiction.png)
+
+_Entry 1: [Tips on writing your first research](https://letters.lossfunk.com/p/tips-on-writing-your-first-research). Entry 2: [From an idea to an ML paper in under](https://letters.lossfunk.com/p/from-an-idea-to-an-ml-paper-in-under)._
+
 ## Quick Start
 
 ```bash
@@ -42,13 +48,13 @@ Read-later workflows usually fail because:
 
 ## Core API
 
-| Endpoint                   | Purpose                                       |
-| -------------------------- | --------------------------------------------- |
-| `POST /api/distill`        | Extract structured knowledge from raw content |
-| `GET /api/entries`         | Server-side search, filters, and pagination   |
-| `POST /api/contradictions` | Analyze entries for conflicting claims        |
-| `GET /api/stats`           | Dashboard analytics (quality, sources, tags)  |
-| `GET /api/dashboard`       | Single response: entries + stats + recent contradictions (bootstrap) |
+| Endpoint                   | Purpose                                                |
+| -------------------------- | ------------------------------------------------------ |
+| `POST /api/distill`        | Extract structured knowledge from raw content          |
+| `GET /api/entries`         | Server-side search, filters, and pagination            |
+| `POST /api/contradictions` | Analyze entries for conflicting claims                 |
+| `GET /api/stats`           | Dashboard analytics (quality, sources, tags)           |
+| `GET /api/dashboard`       | Single response: entries + stats (dashboard bootstrap) |
 
 All endpoints enforce auth + input validation.
 

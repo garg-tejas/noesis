@@ -55,9 +55,8 @@ export const entriesSearchQuerySchema = z.object({
   selectedTags: z.array(z.string().trim().min(1).max(50)).max(50).default([]),
 })
 
-export const dashboardBootstrapQuerySchema = entriesSearchQuerySchema.extend({
-  recentLimit: z.coerce.number().int().min(1).max(20).default(6),
-})
+/** Same query params as `GET /api/entries` — used by dashboard bootstrap. */
+export const dashboardBootstrapQuerySchema = entriesSearchQuerySchema
 
 // Type exports
 export type DistillRequest = z.infer<typeof distillRequestSchema>
