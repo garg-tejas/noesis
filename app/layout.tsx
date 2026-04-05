@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Fraunces, Manrope, JetBrains_Mono } from "next/font/google"
+import { Fraunces, Manrope } from "next/font/google"
 import "./globals.css"
 
 // Distinctive typography system - editorial meets brutalist
@@ -13,12 +13,6 @@ const fraunces = Fraunces({
 const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-sans",
-  display: "swap",
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
   display: "swap",
 })
 
@@ -45,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${manrope.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${fraunces.variable} ${manrope.variable}`}>
       <body className="font-sans antialiased">
         {children}
       </body>

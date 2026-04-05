@@ -28,7 +28,7 @@ import { DashboardSkeleton } from "@/components/ui/skeleton"
 import {
     getEntries,
     getAllEntries,
-    getDashboardStats,
+    getDashboardBootstrap,
     getRecentContradictions,
 } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/client"
@@ -81,6 +81,8 @@ export default function DashboardPage() {
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
     const entriesRequestIdRef = useRef(0)
     const entriesAbortControllerRef = useRef<AbortController | null>(null)
+    const initialDashboardLoaded = useRef(false)
+    const dashboardBootstrapStarted = useRef(false)
 
     const hasActiveFilters = useMemo(() => {
         return (
@@ -185,26 +187,30 @@ export default function DashboardPage() {
         showLowQuality,
     ])
 
-    const refreshStats = useCallback(async () => {
-        if (!isAuthenticated) return
-
-        try {
-            setStatsError(null)
-            const stats = await getDashboardStats()
-            setDashboardStats(stats)
-        } catch (error) {
-            console.error("Failed to load dashboard stats:", error)
-            if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
-                router.push("/auth/login")
-                return
-            }
-            if (error instanceof ApiClientError) {
-                setStatsError(toUserFacingErrorMessage(error, "Unable to load dashboard insights right now."))
-            } else {
-                setStatsError("Unable to load dashboard insights right now.")
-            }
-        }
-    }, [isAuthenticated, router])
+    const fetchAndApplyDashboardBootstrap = useCallback(async () => {
+        const result = await getDashboardBootstrap({
+            page: currentPage,
+            limit: 20,
+            searchQuery: debouncedSearchQuery,
+            minQualityScore: filters.minQualityScore,
+            selectedTags: filters.selectedTags,
+            sourceFilter: filters.sourceFilter,
+            showLowQuality,
+            recentLimit: 6,
+        })
+        setEntries(result.entries.data)
+        setAvailableTags(result.entries.availableTags)
+        setPagination(result.entries.pagination)
+        setDashboardStats(result.stats)
+        setRecentContradictions(result.recentContradictions)
+    }, [
+        currentPage,
+        debouncedSearchQuery,
+        filters.minQualityScore,
+        filters.selectedTags,
+        filters.sourceFilter,
+        showLowQuality,
+    ])
 
     const refreshRecentContradictions = useCallback(async () => {
         if (!isAuthenticated) return
@@ -233,19 +239,48 @@ export default function DashboardPage() {
     }, [isAuthenticated, router])
 
     useEffect(() => {
-        if (!isAuthenticated) return
-        refreshData()
-    }, [isAuthenticated, refreshData])
+        if (!isAuthenticated) {
+            initialDashboardLoaded.current = false
+            dashboardBootstrapStarted.current = false
+            return
+        }
 
-    useEffect(() => {
-        if (!isAuthenticated) return
-        refreshStats()
-    }, [isAuthenticated, refreshStats])
+        if (!initialDashboardLoaded.current) {
+            if (dashboardBootstrapStarted.current) return
+            dashboardBootstrapStarted.current = true
+            void (async () => {
+                try {
+                    setIsRefreshing(true)
+                    setQueryError(null)
+                    setStatsError(null)
+                    setRecentContradictionsError(null)
+                    await fetchAndApplyDashboardBootstrap()
+                    initialDashboardLoaded.current = true
+                } catch (error) {
+                    initialDashboardLoaded.current = false
+                    console.error("Failed to bootstrap dashboard:", error)
+                    if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
+                        router.push("/auth/login")
+                        return
+                    }
+                    if (error instanceof ApiClientError) {
+                        setQueryError(toUserFacingErrorMessage(error, "Failed to load dashboard."))
+                        setStatsError(toUserFacingErrorMessage(error, "Unable to load dashboard insights right now."))
+                    } else {
+                        setQueryError("Failed to load dashboard. Please try again.")
+                        setStatsError("Unable to load dashboard insights right now.")
+                    }
+                } finally {
+                    dashboardBootstrapStarted.current = false
+                    setIsLoading(false)
+                    setIsRefreshing(false)
+                }
+            })()
+            return
+        }
 
-    useEffect(() => {
-        if (!isAuthenticated) return
-        refreshRecentContradictions()
-    }, [isAuthenticated, refreshRecentContradictions])
+        void refreshData()
+    }, [isAuthenticated, refreshData, fetchAndApplyDashboardBootstrap, router])
 
     useEffect(() => {
         return () => {
@@ -254,10 +289,29 @@ export default function DashboardPage() {
     }, [])
 
     const handleDataMutation = useCallback(() => {
-        void refreshData()
-        void refreshStats()
-        void refreshRecentContradictions()
-    }, [refreshData, refreshStats, refreshRecentContradictions])
+        void (async () => {
+            try {
+                setIsRefreshing(true)
+                setQueryError(null)
+                setStatsError(null)
+                setRecentContradictionsError(null)
+                await fetchAndApplyDashboardBootstrap()
+            } catch (error) {
+                console.error("Failed to refresh dashboard after change:", error)
+                if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
+                    router.push("/auth/login")
+                    return
+                }
+                if (error instanceof ApiClientError) {
+                    setQueryError(toUserFacingErrorMessage(error, "Failed to refresh dashboard."))
+                } else {
+                    setQueryError("Failed to refresh dashboard. Please try again.")
+                }
+            } finally {
+                setIsRefreshing(false)
+            }
+        })()
+    }, [fetchAndApplyDashboardBootstrap, router])
 
     const handleLogout = async () => {
         const supabase = createClient()

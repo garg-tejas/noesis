@@ -48,6 +48,7 @@ Read-later workflows usually fail because:
 | `GET /api/entries`         | Server-side search, filters, and pagination   |
 | `POST /api/contradictions` | Analyze entries for conflicting claims        |
 | `GET /api/stats`           | Dashboard analytics (quality, sources, tags)  |
+| `GET /api/dashboard`       | Single response: entries + stats + recent contradictions (bootstrap) |
 
 All endpoints enforce auth + input validation.
 

@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { createClient as createServerClient } from "@/lib/supabase/server"
 import { toApiClientError } from "@/lib/api/client-errors"
 
-const mapDbRowToEntry = (row: {
+type KnowledgeEntryDbRow = {
   id: string
   source_type: KnowledgeEntry["sourceType"]
   original_url: string
@@ -20,7 +20,9 @@ const mapDbRowToEntry = (row: {
   created_at: string
   is_favorite: boolean
   user_notes: string | null
-}): KnowledgeEntry => ({
+}
+
+const mapDbRowToEntry = (row: KnowledgeEntryDbRow): KnowledgeEntry => ({
   id: row.id,
   sourceType: row.source_type,
   originalUrl: row.original_url,
@@ -219,6 +221,24 @@ const paginateEntries = (
   }
 }
 
+const collectAvailableTagsFromDistilledOnly = (
+  rows: Array<{ distilled: KnowledgeEntry["distilled"] | null }>
+): string[] => {
+  const availableTagMap = new Map<string, string>()
+  for (const row of rows) {
+    const tags = row.distilled?.tags
+    if (!Array.isArray(tags)) continue
+    for (const tag of tags) {
+      if (typeof tag !== "string") continue
+      const key = normalizeTag(tag)
+      if (key && !availableTagMap.has(key)) {
+        availableTagMap.set(key, tag)
+      }
+    }
+  }
+  return Array.from(availableTagMap.values()).sort((a, b) => a.localeCompare(b))
+}
+
 export const searchEntriesForUser = async (
   options: EntryQueryOptions,
   userId: string,
@@ -226,16 +246,73 @@ export const searchEntriesForUser = async (
 ): Promise<EntrySearchResult> => {
   const page = options.page ?? 1
   const limit = options.limit ?? 20
+  const searchQuery = options.searchQuery?.trim() || ""
+  const selectedTags = options.selectedTags ?? []
+  const needsMemoryFilter = searchQuery.length > 0 || selectedTags.length > 0
 
-  const { data, error } = await supabaseClient
-    .from("knowledge_entries")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+  const minQualityScore = options.minQualityScore ?? 0
+  const showLowQuality = options.showLowQuality ?? false
+  const sourceFilter = options.sourceFilter ?? "all"
+  const effectiveMinQualityScore = Math.max(
+    minQualityScore,
+    showLowQuality ? 0 : 40
+  )
+
+  const buildFilteredSelect = (select: string, countOpts?: { count: "exact"; head?: boolean }) => {
+    let q = supabaseClient
+      .from("knowledge_entries")
+      .select(select, countOpts)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+
+    if (sourceFilter !== "all") {
+      q = q.eq("source_type", sourceFilter)
+    }
+
+    return q.gte("distilled->quality_score", effectiveMinQualityScore)
+  }
+
+  if (!needsMemoryFilter) {
+    const countHead = await buildFilteredSelect("*", { count: "exact", head: true })
+    if (countHead.error) throw countHead.error
+    const total = countHead.count ?? 0
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0
+    const safePage = totalPages === 0 ? 1 : Math.min(page, totalPages)
+    const from = (safePage - 1) * limit
+    const to = from + limit - 1
+
+    const { data, error } = await buildFilteredSelect("*").range(from, to)
+
+    if (error) throw error
+
+    const mapped = ((data || []) as unknown as KnowledgeEntryDbRow[]).map(mapDbRowToEntry)
+
+    const { data: tagRows, error: tagError } = await buildFilteredSelect("distilled")
+
+    if (tagError) throw tagError
+
+    const availableTags = collectAvailableTagsFromDistilledOnly(
+      (tagRows || []) as unknown as Array<{ distilled: KnowledgeEntry["distilled"] | null }>
+    )
+
+    return {
+      data: mapped,
+      availableTags,
+      pagination: {
+        page: safePage,
+        limit,
+        total,
+        totalPages,
+        hasMore: safePage < totalPages,
+      },
+    }
+  }
+
+  const { data, error } = await buildFilteredSelect("*")
 
   if (error) throw error
 
-  const allEntries = (data || []).map(mapDbRowToEntry)
+  const allEntries = ((data || []) as unknown as KnowledgeEntryDbRow[]).map(mapDbRowToEntry)
   const { filteredEntries, availableTags } = applyEntryFilters(allEntries, options)
 
   return paginateEntries(filteredEntries, page, limit, availableTags)
@@ -309,6 +386,52 @@ export const getRecentContradictions = async (
 
   const data = payload as { contradictions?: ContradictionInsight[] }
   return data.contradictions || []
+}
+
+export interface DashboardBootstrapResult {
+  entries: EntrySearchResult
+  stats: DashboardStats
+  recentContradictions: ContradictionInsight[]
+}
+
+export const getDashboardBootstrap = async (
+  options: EntryQueryOptions & { recentLimit?: number } = {},
+  requestOptions: EntriesRequestOptions = {}
+): Promise<DashboardBootstrapResult> => {
+  const {
+    page = 1,
+    limit = 20,
+    searchQuery = "",
+    minQualityScore = 0,
+    selectedTags = [],
+    sourceFilter = "all",
+    showLowQuality = false,
+    recentLimit = 6,
+  } = options
+
+  const params = new URLSearchParams()
+  params.set("page", page.toString())
+  params.set("limit", limit.toString())
+  params.set("searchQuery", searchQuery)
+  params.set("minQualityScore", minQualityScore.toString())
+  params.set("sourceFilter", sourceFilter)
+  params.set("showLowQuality", showLowQuality ? "true" : "false")
+  params.set("recentLimit", String(recentLimit))
+  selectedTags.forEach((tag) => {
+    const trimmed = tag.trim()
+    if (trimmed) params.append("tag", trimmed)
+  })
+
+  const response = await fetch(`/api/dashboard?${params.toString()}`, {
+    signal: requestOptions.signal,
+  })
+  const payload: unknown = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw toApiClientError(response, payload, "Failed to load dashboard")
+  }
+
+  return payload as DashboardBootstrapResult
 }
 
 /**

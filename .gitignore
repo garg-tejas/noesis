@@ -22,9 +22,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.claude/
-.codex/
-.cursor/
-.opencode/
-.vscode/
-.github/
+skills/
+skill/
+
+*.json
