@@ -1,8 +1,9 @@
-import { ArrowRight, Sparkles, Search, GitCompareArrows, Zap, Shield, Brain, BookOpen, Lightbulb } from "lucide-react"
+import { Sparkles, Search, GitCompareArrows, Zap, Shield, Brain, BookOpen, Lightbulb } from "lucide-react"
 import dynamic from "next/dynamic"
 import { BrainCircuitIcon } from "@/components/BrainCircuitIcon"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { LandingAuthNav } from "@/components/landing/LandingAuthNav"
 
 const LandingBelowFold = dynamic(() => import("@/components/landing/LandingBelowFold"), {
   loading: () => <div className="min-h-[40vh] bg-muted/20 animate-pulse" aria-hidden />,
@@ -11,7 +12,6 @@ const LandingBelowFold = dynamic(() => import("@/components/landing/LandingBelow
 export default function Page() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Neo-brutalist Navigation — signed-out shell only; proxy redirects authed users to /dashboard */}
       <nav className="border-b-4 border-foreground sticky top-0 z-50 bg-background">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -19,20 +19,7 @@ export default function Page() {
               <BrainCircuitIcon className="w-8 h-8 text-primary" />
               <span className="font-display text-2xl font-bold tracking-tight">Noesis</span>
             </div>
-            <div className="flex items-center gap-4">
-              <Link
-                href="/auth/login"
-                className="text-sm font-semibold text-foreground/70 hover:text-foreground transition-colors px-4 py-2"
-              >
-                Sign in
-              </Link>
-              <Link href="/auth/sign-up">
-                <Button className="bg-accent hover:bg-accent/90 text-white font-bold border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
-                  Get Started
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
+            <LandingAuthNav />
           </div>
         </div>
       </nav>

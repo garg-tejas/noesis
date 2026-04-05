@@ -29,7 +29,6 @@ import {
     getEntries,
     getAllEntries,
     getDashboardBootstrap,
-    getRecentContradictions,
 } from "@/services/storageService"
 import { createClient } from "@/lib/supabase/client"
 import { ApiClientError, toUserFacingErrorMessage } from "@/lib/api/client-errors"
@@ -37,7 +36,6 @@ import type {
     KnowledgeEntry,
     FilterState,
     DashboardStats,
-    ContradictionInsight,
 } from "@/types"
 import { useRouter } from "next/navigation"
 
@@ -66,9 +64,6 @@ export default function DashboardPage() {
     const [queryError, setQueryError] = useState<string | null>(null)
     const [statsError, setStatsError] = useState<string | null>(null)
     const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
-    const [recentContradictions, setRecentContradictions] = useState<ContradictionInsight[]>([])
-    const [isLoadingRecentContradictions, setIsLoadingRecentContradictions] = useState(false)
-    const [recentContradictionsError, setRecentContradictionsError] = useState<string | null>(null)
 
     // Filter state
     const [filters, setFilters] = useState<FilterState>({
@@ -196,13 +191,11 @@ export default function DashboardPage() {
             selectedTags: filters.selectedTags,
             sourceFilter: filters.sourceFilter,
             showLowQuality,
-            recentLimit: 6,
         })
         setEntries(result.entries.data)
         setAvailableTags(result.entries.availableTags)
         setPagination(result.entries.pagination)
         setDashboardStats(result.stats)
-        setRecentContradictions(result.recentContradictions)
     }, [
         currentPage,
         debouncedSearchQuery,
@@ -211,32 +204,6 @@ export default function DashboardPage() {
         filters.sourceFilter,
         showLowQuality,
     ])
-
-    const refreshRecentContradictions = useCallback(async () => {
-        if (!isAuthenticated) return
-
-        try {
-            setIsLoadingRecentContradictions(true)
-            setRecentContradictionsError(null)
-            const rows = await getRecentContradictions(6)
-            setRecentContradictions(rows)
-        } catch (error) {
-            console.error("Failed to load recent contradictions:", error)
-            if (error instanceof ApiClientError && error.code === "UNAUTHORIZED") {
-                router.push("/auth/login")
-                return
-            }
-            if (error instanceof ApiClientError) {
-                setRecentContradictionsError(
-                    toUserFacingErrorMessage(error, "Unable to load recent contradictions right now.")
-                )
-            } else {
-                setRecentContradictionsError("Unable to load recent contradictions right now.")
-            }
-        } finally {
-            setIsLoadingRecentContradictions(false)
-        }
-    }, [isAuthenticated, router])
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -253,7 +220,6 @@ export default function DashboardPage() {
                     setIsRefreshing(true)
                     setQueryError(null)
                     setStatsError(null)
-                    setRecentContradictionsError(null)
                     await fetchAndApplyDashboardBootstrap()
                     initialDashboardLoaded.current = true
                 } catch (error) {
@@ -294,7 +260,6 @@ export default function DashboardPage() {
                 setIsRefreshing(true)
                 setQueryError(null)
                 setStatsError(null)
-                setRecentContradictionsError(null)
                 await fetchAndApplyDashboardBootstrap()
             } catch (error) {
                 console.error("Failed to refresh dashboard after change:", error)
@@ -534,12 +499,6 @@ export default function DashboardPage() {
                             {statsError}
                         </div>
                     ) : null}
-                    {recentContradictionsError ? (
-                        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                            {recentContradictionsError}
-                        </div>
-                    ) : null}
-
                     <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                         <div className="rounded-xl border border-gray-200 bg-white p-4">
                             <p className="text-xs uppercase tracking-wide text-gray-500">Total Insights</p>
@@ -591,50 +550,6 @@ export default function DashboardPage() {
                                 )}
                             </div>
                         </div>
-                    </div>
-
-                    <div className="mb-8 rounded-xl border border-gray-200 bg-white p-4">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs uppercase tracking-wide text-gray-500">Knowledge Tensions</p>
-                                <h2 className="text-lg font-semibold text-gray-900">Recent Contradictions</h2>
-                            </div>
-                            <button
-                                onClick={() => void refreshRecentContradictions()}
-                                className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                            >
-                                Refresh
-                            </button>
-                        </div>
-
-                        {isLoadingRecentContradictions ? (
-                            <p className="text-sm text-gray-500">Loading recent contradictions...</p>
-                        ) : recentContradictions.length === 0 ? (
-                            <p className="text-sm text-gray-500">
-                                No stored contradictions yet. Run contradiction analysis to populate this section.
-                            </p>
-                        ) : (
-                            <div className="space-y-3">
-                                {recentContradictions.map((item) => (
-                                    <div key={item.id} className="rounded-lg border border-orange-200 bg-orange-50/40 p-3">
-                                        <p className="text-sm font-medium text-gray-900">{item.description}</p>
-                                        <div className="mt-2 grid gap-2 text-xs text-gray-600 md:grid-cols-2">
-                                            <div className="rounded-md bg-white px-2 py-2">
-                                                <p className="font-semibold text-gray-800">{item.item1.author} ({item.item1.sourceType})</p>
-                                                <p className="mt-1 line-clamp-2">{item.item1.coreIdea}</p>
-                                            </div>
-                                            <div className="rounded-md bg-white px-2 py-2">
-                                                <p className="font-semibold text-gray-800">{item.item2.author} ({item.item2.sourceType})</p>
-                                                <p className="mt-1 line-clamp-2">{item.item2.coreIdea}</p>
-                                            </div>
-                                        </div>
-                                        <p className="mt-2 text-[11px] text-gray-500">
-                                            Logged {new Date(item.createdAt).toLocaleString()}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
                     </div>
 
                     {/* Content Grid */}
