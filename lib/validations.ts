@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 // Source type enum
-export const sourceTypeSchema = z.enum(["twitter", "blog", "youtube", "other"])
+export const sourceTypeSchema = z.enum(["twitter", "blog", "youtube", "substack", "other"])
 export const sourceFilterSchema = z.union([sourceTypeSchema, z.literal("all")])
 
 // Distill API request schema

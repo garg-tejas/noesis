@@ -21,6 +21,7 @@ const createSourceBreakdown = (): SourceBreakdown => ({
   twitter: 0,
   blog: 0,
   youtube: 0,
+  substack: 0,
   other: 0,
 })
 

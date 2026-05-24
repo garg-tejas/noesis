@@ -1,108 +1,190 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useCallback } from "react"
-import { X, Loader2, Sparkles, AlertCircle } from "lucide-react"
-import { saveEntry } from "../services/storageService"
-import type { KnowledgeEntry, SourceType } from "../types"
-import { ApiClientError, toApiClientError, toUserFacingErrorMessage } from "@/lib/api/client-errors"
-import { useRouter } from "next/navigation"
+import type React from "react";
+import { useState, useCallback } from "react";
+import { X, Loader2, Sparkles, AlertCircle, Link } from "lucide-react";
+import { saveEntry } from "../services/storageService";
+import type { KnowledgeEntry, SourceType } from "../types";
+import {
+  ApiClientError,
+  toApiClientError,
+  toUserFacingErrorMessage,
+} from "@/lib/api/client-errors";
+import { useRouter } from "next/navigation";
 
 interface IngestionModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSuccess: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
-const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const router = useRouter()
-  const [url, setUrl] = useState("")
-  const [rawText, setRawText] = useState("")
-  const [sourceType, setSourceType] = useState<SourceType>("twitter")
-  const [author, setAuthor] = useState("")
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+const IngestionModal: React.FC<IngestionModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
+  const router = useRouter();
+  const [url, setUrl] = useState("");
+  const [rawText, setRawText] = useState("");
+  const [sourceType, setSourceType] = useState<SourceType>("twitter");
+  const [author, setAuthor] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchStatus, setFetchStatus] = useState<"idle" | "success" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   const handleClose = useCallback(() => {
-    setUrl("")
-    setRawText("")
-    setAuthor("")
-    setSourceType("twitter")
-    setError(null)
-    onClose()
-  }, [onClose])
+    setUrl("");
+    setRawText("");
+    setAuthor("");
+    setSourceType("twitter");
+    setError(null);
+    setFetchStatus("idle");
+    onClose();
+  }, [onClose]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setIsProcessing(true)
+  const handleSourceTypeChange = useCallback((type: SourceType) => {
+    setSourceType(type);
+    setFetchStatus("idle");
+    setRawText("");
+    setUrl("");
+    setAuthor("");
+    setError(null);
+  }, []);
+
+  const handleFetchSubstack = useCallback(async () => {
+    if (!url.trim()) {
+      setError("Please enter a Substack URL first.");
+      return;
+    }
+    setIsFetching(true);
+    setError(null);
+    setFetchStatus("idle");
 
     try {
-      // For YouTube, validate URL is provided
-      if (sourceType === "youtube") {
-        if (!url.trim()) {
-          throw new Error("Please provide a YouTube URL")
-        }
-      } else {
-        // For non-YouTube sources, require raw text
-        if (!rawText.trim()) {
-          throw new Error("Please provide the content text.")
-        }
-      }
-
-      const response = await fetch("/api/distill", {
+      const res = await fetch("/api/scrape/substack", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          rawText: sourceType === "youtube" ? undefined : rawText,
-          sourceType,
-          youtubeUrl: sourceType === "youtube" ? url : undefined,
-        }),
-      })
-      const payload: unknown = await response.json().catch(() => null)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const payload: unknown = await res.json().catch(() => null);
 
-      if (!response.ok) {
-        const apiError = toApiClientError(response, payload, "Failed to distill content")
-        console.error("Distillation failed:", apiError)
-        throw apiError
+      if (!res.ok) {
+        const apiError = toApiClientError(
+          res,
+          payload,
+          "Failed to fetch Substack post",
+        );
+        throw apiError;
       }
 
-      const distilledData = payload as KnowledgeEntry["distilled"]
-
-      const newEntry: KnowledgeEntry = {
-        id: crypto.randomUUID(),
-        sourceType,
-        originalUrl: url,
-        author: author || (sourceType === "youtube" ? "YouTube Video" : "Unknown"),
-        rawText: sourceType === "youtube" ? undefined : rawText,
-        distilled: distilledData,
-        createdAt: Date.now(),
-        isFavorite: false,
+      const data = payload as { rawText: string; author: string; canonicalUrl: string };
+      setRawText(data.rawText);
+      if (data.author && !author) setAuthor(data.author);
+      if (data.canonicalUrl) setUrl(data.canonicalUrl);
+      setFetchStatus("success");
+    } catch (err) {
+      if (err instanceof ApiClientError && err.code === "UNAUTHORIZED") {
+        router.push("/auth/login");
+        return;
       }
-
-      await saveEntry(newEntry)
-      onSuccess()
-      handleClose()
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError) {
-        if (err.code === "UNAUTHORIZED") {
-          router.push("/auth/login")
-        }
-        setError(toUserFacingErrorMessage(err, "Failed to distill content."))
-      } else {
-        setError(err instanceof Error ? err.message : "Failed to distill content.")
-      }
+      setError(
+        err instanceof ApiClientError
+          ? toUserFacingErrorMessage(err, "Failed to fetch Substack post.")
+          : err instanceof Error
+            ? err.message
+            : "Failed to fetch Substack post.",
+      );
+      setFetchStatus("error");
     } finally {
-      setIsProcessing(false)
+      setIsFetching(false);
     }
-  }, [author, handleClose, onSuccess, rawText, router, sourceType, url])
+  }, [url, author, router]);
 
-  const isYouTube = sourceType === "youtube"
-  const isSubmitDisabled = isProcessing || (isYouTube ? !url.trim() : !rawText.trim())
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError(null);
+      setIsProcessing(true);
 
-  if (!isOpen) return null
+      try {
+        if (sourceType === "youtube") {
+          if (!url.trim()) {
+            throw new Error("Please provide a YouTube URL");
+          }
+        } else if (sourceType === "substack") {
+          if (!rawText.trim()) {
+            throw new Error("Please fetch the Substack post first.");
+          }
+        } else {
+          if (!rawText.trim()) {
+            throw new Error("Please provide the content text.");
+          }
+        }
+
+        const response = await fetch("/api/distill", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rawText: sourceType === "youtube" ? undefined : rawText,
+            sourceType,
+            youtubeUrl: sourceType === "youtube" ? url : undefined,
+          }),
+        });
+        const payload: unknown = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const apiError = toApiClientError(
+            response,
+            payload,
+            "Failed to distill content",
+          );
+          console.error("Distillation failed:", apiError);
+          throw apiError;
+        }
+
+        const distilledData = payload as KnowledgeEntry["distilled"];
+
+        const newEntry: KnowledgeEntry = {
+          id: crypto.randomUUID(),
+          sourceType,
+          originalUrl: url,
+          author: author || (sourceType === "youtube" ? "YouTube Video" : "Unknown"),
+          rawText: sourceType === "youtube" ? undefined : rawText,
+          distilled: distilledData,
+          createdAt: Date.now(),
+          isFavorite: false,
+        };
+
+        await saveEntry(newEntry);
+        onSuccess();
+        handleClose();
+      } catch (err: unknown) {
+        if (err instanceof ApiClientError) {
+          if (err.code === "UNAUTHORIZED") {
+            router.push("/auth/login");
+          }
+          setError(toUserFacingErrorMessage(err, "Failed to distill content."));
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to distill content.");
+        }
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [author, handleClose, onSuccess, rawText, router, sourceType, url],
+  );
+
+  const isYouTube = sourceType === "youtube";
+  const isSubstack = sourceType === "substack";
+  const isSubmitDisabled =
+    isProcessing ||
+    isFetching ||
+    (isYouTube ? !url.trim() : isSubstack ? !rawText.trim() : !rawText.trim());
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -112,7 +194,10 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
             <Sparkles className="w-5 h-5 text-brand-600" />
             Curate New Knowledge
           </h2>
-          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -127,75 +212,126 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
 
           <form id="ingest-form" onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Source Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Source Type
+              </label>
               <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setSourceType("twitter")}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceType === "twitter"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                    }`}
-                >
-                  Twitter / X
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSourceType("blog")}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceType === "blog" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    }`}
-                >
-                  Blog Post
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSourceType("youtube")}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceType === "youtube" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    }`}
-                >
-                  YouTube
-                </button>
+                {(["twitter", "blog", "substack", "youtube"] as SourceType[]).map(
+                  (type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleSourceTypeChange(type)}
+                      className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        sourceType === type
+                          ? "bg-white text-gray-900 shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      {type === "twitter"
+                        ? "Twitter / X"
+                        : type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className={isYouTube ? "col-span-2" : ""}>
+            {/* Substack: URL + Fetch button */}
+            {isSubstack && (
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {isYouTube ? "YouTube URL" : "Original URL (Optional)"}
-                  {isYouTube && <span className="text-red-500 ml-1">*</span>}
+                  Substack Post URL <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder={isYouTube ? "https://youtube.com/watch?v=..." : "https://..."}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
-                  required={isYouTube}
-                />
-                {isYouTube && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    We'll process the video directly from YouTube
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={url}
+                    onChange={(e) => {
+                      setUrl(e.target.value);
+                      setFetchStatus("idle");
+                    }}
+                    placeholder="https://example.substack.com/p/your-post"
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleFetchSubstack}
+                    disabled={isFetching || !url.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {isFetching ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Fetching...
+                      </>
+                    ) : (
+                      <>
+                        <Link className="w-4 h-4" /> Fetch Post
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Paste a specific post URL or a publication homepage to fetch the
+                  latest post.
+                </p>
+                {fetchStatus === "success" && (
+                  <p className="mt-1 text-xs text-green-600 font-medium">
+                    ✓ Post fetched successfully
                   </p>
                 )}
               </div>
+            )}
 
-              {!isYouTube && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Author / Handle</label>
+            {/* YouTube / non-Substack URL + Author row */}
+            {!isSubstack && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className={isYouTube ? "col-span-2" : ""}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isYouTube ? "YouTube URL" : "Original URL (Optional)"}
+                    {isYouTube && <span className="text-red-500 ml-1">*</span>}
+                  </label>
                   <input
-                    type="text"
-                    value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
-                    placeholder={sourceType === "twitter" ? "@username" : "Author Name"}
+                    type="url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder={
+                      isYouTube ? "https://youtube.com/watch?v=..." : "https://..."
+                    }
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                    required={isYouTube}
                   />
+                  {isYouTube && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      We'll process the video directly from YouTube
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
+
+                {!isYouTube && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Author / Handle
+                    </label>
+                    <input
+                      type="text"
+                      value={author}
+                      onChange={(e) => setAuthor(e.target.value)}
+                      placeholder={
+                        sourceType === "twitter" ? "@username" : "Author Name"
+                      }
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {isYouTube && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Channel Name (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Channel Name (Optional)
+                </label>
                 <input
                   type="text"
                   value={author}
@@ -206,16 +342,45 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
               </div>
             )}
 
+            {/* Author field for Substack (auto-filled but editable) */}
+            {isSubstack && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Author (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  placeholder="Auto-filled from post"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all"
+                />
+              </div>
+            )}
+
+            {/* Text area — shown for non-YouTube, always (for Substack it's auto-filled) */}
             {!isYouTube && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Content to Curate
-                  <span className="ml-2 text-xs font-normal text-gray-400">(Paste the thread or article text here)</span>
+                  {isSubstack ? (
+                    <span className="ml-2 text-xs font-normal text-gray-400">
+                      (Auto-filled after fetch — you can edit)
+                    </span>
+                  ) : (
+                    <span className="ml-2 text-xs font-normal text-gray-400">
+                      (Paste the thread or article text here)
+                    </span>
+                  )}
                 </label>
                 <textarea
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
-                  placeholder="Paste the raw text content here..."
+                  placeholder={
+                    isSubstack
+                      ? "Click 'Fetch Post' above to auto-populate this field..."
+                      : "Paste the raw text content here..."
+                  }
                   rows={8}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all resize-none font-mono text-sm"
                   required={!isYouTube}
@@ -254,7 +419,7 @@ const IngestionModal: React.FC<IngestionModalProps> = ({ isOpen, onClose, onSucc
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default IngestionModal
+export default IngestionModal;
