@@ -58,7 +58,19 @@ export const entriesSearchQuerySchema = z.object({
 /** Same query params as `GET /api/entries` — used by dashboard bootstrap. */
 export const dashboardBootstrapQuerySchema = entriesSearchQuerySchema
 
+export const substackIntegrationSchema = z.object({
+  sessionCookie: z
+    .string()
+    .trim()
+    .min(20, "Paste the full Substack Cookie header")
+    .max(12000, "Cookie header is unexpectedly long")
+    .refine((value) => !/[\r\n]/.test(value), "Cookie header must be a single line"),
+  syncLikes: z.boolean().default(true),
+  syncSaves: z.boolean().default(true),
+})
+
 // Type exports
 export type DistillRequest = z.infer<typeof distillRequestSchema>
 export type ContradictionsRequest = z.infer<typeof contradictionsRequestSchema>
 export type EntriesSearchQuery = z.infer<typeof entriesSearchQuerySchema>
+export type SubstackIntegrationInput = z.infer<typeof substackIntegrationSchema>

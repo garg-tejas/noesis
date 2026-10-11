@@ -26,3 +26,4 @@ skills/
 skill/
 
 *.json
+!vercel.json
