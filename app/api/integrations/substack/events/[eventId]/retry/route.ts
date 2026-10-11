@@ -18,6 +18,9 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ e
     const processed = await retrySubstackEvent(createAdminClient(), user.id, params.data.eventId)
     return NextResponse.json({ processed })
   } catch (error) {
+    if (error instanceof Error && error.message === "GEMINI_QUOTA_EXHAUSTED") {
+      return errorResponse(429, "RATE_LIMITED", "Gemini quota reached. Try again later.")
+    }
     return errorResponse(502, "UPSTREAM_ERROR", error instanceof Error ? error.message : "Retry failed")
   }
 }

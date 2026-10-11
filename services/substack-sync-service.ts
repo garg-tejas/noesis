@@ -6,11 +6,11 @@ import type { KnowledgeEntry } from "@/types"
 const SUBSTACK_API = "https://substack.com/api/v1"
 const MAX_EVENTS_PER_SYNC = 100
 const configuredBatchSize = Number.parseInt(process.env.SUBSTACK_SYNC_BATCH_SIZE || "5", 10)
-// Bound each run even if a user has years of likes/saves. Remaining events stay
-// queued for the next three-hour run (or an explicit one-at-a-time retry).
 const MAX_ENTRIES_PROCESSED_PER_SYNC = Number.isFinite(configuredBatchSize)
   ? Math.min(Math.max(configuredBatchSize, 1), 25)
   : 5
+const GEMINI_REQUESTS_PER_MINUTE = 5
+const GEMINI_REQUESTS_PER_DAY = 20
 
 type IntegrationRow = {
   id: string
@@ -156,9 +156,28 @@ async function queueCandidates(admin: SupabaseClient, integration: IntegrationRo
   if (error) throw error
 }
 
+async function getRemainingGeminiQuota(admin: SupabaseClient): Promise<number> {
+  const now = new Date()
+  const oneMinuteAgo = new Date(now.getTime() - 60_000).toISOString()
+  const startOfUtcDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString()
+  const [minuteResult, dayResult] = await Promise.all([
+    admin.from("substack_gemini_requests").select("id", { count: "exact", head: true }).gte("attempted_at", oneMinuteAgo),
+    admin.from("substack_gemini_requests").select("id", { count: "exact", head: true }).gte("attempted_at", startOfUtcDay),
+  ])
+  if (minuteResult.error) throw minuteResult.error
+  if (dayResult.error) throw dayResult.error
+  return Math.max(0, Math.min(
+    GEMINI_REQUESTS_PER_MINUTE - (minuteResult.count ?? 0),
+    GEMINI_REQUESTS_PER_DAY - (dayResult.count ?? 0)
+  ))
+}
+
 async function processQueuedEntries(admin: SupabaseClient, integration: IntegrationRow, onlyEventId?: string): Promise<number> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured")
+
+  const remainingQuota = await getRemainingGeminiQuota(admin)
+  if (remainingQuota === 0) return 0
 
   let query = admin
     .from("substack_sync_events")
@@ -168,7 +187,7 @@ async function processQueuedEntries(admin: SupabaseClient, integration: Integrat
     .lte("available_at", new Date().toISOString())
     .order("available_at", { ascending: true })
   if (onlyEventId) query = query.eq("id", onlyEventId)
-  const { data: events, error } = await query.limit(onlyEventId ? 1 : MAX_ENTRIES_PROCESSED_PER_SYNC)
+  const { data: events, error } = await query.limit(onlyEventId ? 1 : Math.min(MAX_ENTRIES_PROCESSED_PER_SYNC, remainingQuota))
   if (error) throw error
 
   let processed = 0
@@ -188,6 +207,12 @@ async function processQueuedEntries(admin: SupabaseClient, integration: Integrat
         continue
       }
 
+      const { data: reserved, error: quotaError } = await admin.rpc("reserve_substack_gemini_request", {
+        p_event_id: event.id,
+      })
+      if (quotaError) throw quotaError
+      if (!reserved) break
+
       const distilled = await distillContent(post.rawText, "substack", apiKey)
       const { data: entry, error: insertError } = await admin.from("knowledge_entries").insert({
         user_id: integration.user_id,
@@ -205,8 +230,6 @@ async function processQueuedEntries(admin: SupabaseClient, integration: Integrat
     } catch (error) {
       const attemptCount = event.attempt_count + 1
       await admin.from("substack_sync_events").update({
-        // Failed events stay in the database for explicit, user-triggered retries.
-        // Scheduled syncs never retry them automatically.
         status: "failed",
         attempt_count: attemptCount,
         available_at: new Date().toISOString(),
@@ -236,6 +259,7 @@ export async function retrySubstackEvent(admin: SupabaseClient, userId: string, 
     .maybeSingle()
   if (integrationError) throw integrationError
   if (!integration) throw new Error("Substack integration not found")
+  if (await getRemainingGeminiQuota(admin) === 0) throw new Error("GEMINI_QUOTA_EXHAUSTED")
 
   const { error: resetError } = await admin
     .from("substack_sync_events")
@@ -243,7 +267,24 @@ export async function retrySubstackEvent(admin: SupabaseClient, userId: string, 
     .eq("id", event.id)
   if (resetError) throw resetError
 
-  return processQueuedEntries(admin, integration, event.id)
+  const processed = await processQueuedEntries(admin, integration, event.id)
+  const { data: result, error: resultError } = await admin
+    .from("substack_sync_events")
+    .select("status")
+    .eq("id", event.id)
+    .single()
+  if (resultError) throw resultError
+
+  if (result.status === "queued") {
+    const { error: restoreError } = await admin
+      .from("substack_sync_events")
+      .update({ status: "failed", error: "GEMINI_QUOTA_EXHAUSTED", processed_at: new Date().toISOString() })
+      .eq("id", event.id)
+    if (restoreError) throw restoreError
+    throw new Error("GEMINI_QUOTA_EXHAUSTED")
+  }
+
+  return processed
 }
 
 export async function syncSubstackIntegration(admin: SupabaseClient, integration: IntegrationRow) {
@@ -260,8 +301,6 @@ export async function syncSubstackIntegration(admin: SupabaseClient, integration
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown sync failure"
     await admin.from("substack_integrations").update({
-      // An invalid session needs human action. Transient upstream errors should
-      // stay active so the next scheduled run can recover automatically.
       status: message === "SUBSTACK_SESSION_EXPIRED" ? "reauth_required" : "active",
       last_error: message.slice(0, 500),
       updated_at: new Date().toISOString(),
