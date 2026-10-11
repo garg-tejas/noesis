@@ -5,7 +5,12 @@ import type { KnowledgeEntry } from "@/types"
 
 const SUBSTACK_API = "https://substack.com/api/v1"
 const MAX_EVENTS_PER_SYNC = 100
-const MAX_ENTRIES_PROCESSED_PER_SYNC = 10
+const configuredBatchSize = Number.parseInt(process.env.SUBSTACK_SYNC_BATCH_SIZE || "5", 10)
+// Bound each run even if a user has years of likes/saves. Remaining events stay
+// queued for the next three-hour run (or an explicit one-at-a-time retry).
+const MAX_ENTRIES_PROCESSED_PER_SYNC = Number.isFinite(configuredBatchSize)
+  ? Math.min(Math.max(configuredBatchSize, 1), 25)
+  : 5
 
 type IntegrationRow = {
   id: string
