@@ -12,6 +12,7 @@ import {
     GitCompareArrows,
     LogOut,
     User,
+    Settings,
 } from "lucide-react"
 import dynamic from "next/dynamic"
 import KnowledgeCard from "@/components/KnowledgeCard"
@@ -38,6 +39,7 @@ import type {
     DashboardStats,
 } from "@/types"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -467,6 +469,10 @@ export default function DashboardPage() {
                             {isRefreshing ? <p className="text-xs text-gray-400 mt-1">Updating results...</p> : null}
                         </div>
                         <div className="flex items-center gap-3">
+                            <Link href="/dashboard/integrations" className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg shadow-sm hover:bg-gray-50 transition-all" title="Integrations">
+                                <Settings className="w-4 h-4" />
+                                <span className="hidden sm:inline">Integrations</span>
+                            </Link>
                             <div className="relative group">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-500 transition-colors" />
                                 <input
