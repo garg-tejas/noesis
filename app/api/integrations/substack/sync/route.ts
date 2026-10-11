@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { syncSubstackIntegration } from "@/services/substack-sync-service"
 import { errorResponse } from "@/lib/api/errors"
+import { createRouteLogger } from "@/lib/api/server-log"
 
 export async function POST() {
+  const log = createRouteLogger("/api/integrations/substack/sync")
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return errorResponse(401, "UNAUTHORIZED", "Authentication required")
@@ -20,8 +22,10 @@ export async function POST() {
     if (!integration) return errorResponse(404, "BAD_REQUEST", "No Substack integration is connected")
 
     const result = await syncSubstackIntegration(admin, integration)
+    log.info("sync.completed", { userId: user.id, ...result })
     return NextResponse.json(result)
   } catch (error) {
+    log.error("sync.failed", error, { userId: user.id })
     return errorResponse(502, "UPSTREAM_ERROR", error instanceof Error ? error.message : "Substack sync failed")
   }
 }

@@ -5,6 +5,7 @@ import type { KnowledgeEntry } from "@/types"
 
 const SUBSTACK_API = "https://substack.com/api/v1"
 const MAX_EVENTS_PER_SYNC = 100
+const MAX_SAVED_EVENTS_PER_SYNC = 20
 const configuredBatchSize = Number.parseInt(process.env.SUBSTACK_SYNC_BATCH_SIZE || "5", 10)
 const MAX_ENTRIES_PROCESSED_PER_SYNC = Number.isFinite(configuredBatchSize)
   ? Math.min(Math.max(configuredBatchSize, 1), 25)
@@ -91,7 +92,7 @@ async function fetchJson(url: string, cookie: string): Promise<unknown> {
   if (response.status === 401 || response.status === 403) {
     throw new Error("SUBSTACK_SESSION_EXPIRED")
   }
-  if (!response.ok) throw new Error(`Substack returned ${response.status}`)
+  if (!response.ok) throw new Error(`Substack ${new URL(url).pathname} returned ${response.status}`)
   return response.json()
 }
 
@@ -107,8 +108,8 @@ async function collectLikes(integration: IntegrationRow, cookie: string): Promis
 }
 
 async function collectSaves(cookie: string): Promise<Candidate[]> {
-  const params = new URLSearchParams({ inboxType: "inbox", surface: "inbox_saved", limit: String(MAX_EVENTS_PER_SYNC) })
-  const payload = asRecord(await fetchJson(`${SUBSTACK_API}/inbox/top?${params}`, cookie))
+  const params = new URLSearchParams({ inboxType: "saved", limit: String(MAX_SAVED_EVENTS_PER_SYNC) })
+  const payload = asRecord(await fetchJson(`${SUBSTACK_API}/reader/posts?${params}`, cookie))
   const posts = Array.isArray(payload?.posts) ? payload.posts.map(asRecord).filter((post): post is FeedItem => Boolean(post)) : []
   return posts.flatMap((post) => {
     const postUrl = postUrlFromRecord(post)
