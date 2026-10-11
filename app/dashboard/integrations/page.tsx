@@ -72,7 +72,7 @@ export default function IntegrationsPage() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || "Could not connect Substack")
       setSessionCookie("")
-      setMessage("Connected. The next scheduled sync will run within three hours.")
+      setMessage("Connected. You can sync now or wait for the next scheduled daily sync.")
       await Promise.all([load(), loadFailedEvents()])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not connect Substack")
@@ -148,7 +148,7 @@ export default function IntegrationsPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#d8ac53]">Experimental connector</p>
                 <h1 className="mt-2 font-serif text-3xl tracking-tight sm:text-4xl">Substack reader sync</h1>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-[#dfe8df]">Bring your likes and saved posts into Noesis every three hours—without asking Substack to publish or modify anything.</p>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-[#dfe8df]">Bring your likes and saved posts into Noesis once each day—without asking Substack to publish or modify anything.</p>
               </div>
             </div>
           </div>
@@ -185,7 +185,7 @@ export default function IntegrationsPage() {
             {activeTab === "connection" ? <form onSubmit={connect} className="space-y-5">
               <div>
                 <h2 className="font-serif text-2xl">{integration ? "Replace session" : "Connect your reader account"}</h2>
-                <p className="mt-2 text-sm leading-6 text-stone-600">Paste the complete <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs">Cookie</code> request header from a signed-in request to substack.com. Noesis encrypts it before storage and uses it only for read-only sync requests.</p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">In your browser’s DevTools, open a signed-in request to <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs">substack.com</code> and copy only the value after <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs">Cookie:</code>. Noesis encrypts it before storage and uses it only for read-only sync requests.</p>
               </div>
               <label className="block"><span className="mb-2 block text-sm font-semibold text-stone-700">Substack Cookie header</span><textarea value={sessionCookie} onChange={(event) => setSessionCookie(event.target.value)} required rows={5} placeholder="substack.sid=…; connect.sid=…" className="w-full rounded-xl border border-stone-300 bg-white px-3 py-3 font-mono text-xs leading-5 outline-none transition placeholder:text-stone-400 focus:border-[#d8ac53] focus:ring-4 focus:ring-[#d8ac53]/15" /></label>
               <div className="grid gap-3 sm:grid-cols-2">
