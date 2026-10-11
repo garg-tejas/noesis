@@ -291,13 +291,30 @@ export async function retrySubstackEvent(admin: SupabaseClient, userId: string, 
 export async function syncSubstackIntegration(admin: SupabaseClient, integration: IntegrationRow) {
   const cookie = decryptSubstackSession(integration.encrypted_session)
   try {
-    const candidates = [
-      ...(integration.sync_likes ? await collectLikes(integration, cookie) : []),
-      ...(integration.sync_saves ? await collectSaves(cookie) : []),
+    const sources = [
+      ...(integration.sync_likes ? [{ name: "likes", collect: () => collectLikes(integration, cookie) }] : []),
+      ...(integration.sync_saves ? [{ name: "saved posts", collect: () => collectSaves(cookie) }] : []),
     ]
+    const sourceResults = await Promise.allSettled(sources.map((source) => source.collect()))
+    const sourceErrors = sourceResults.flatMap((result, index) =>
+      result.status === "rejected"
+        ? [`${sources[index].name}: ${result.reason instanceof Error ? result.reason.message : "Sync failed"}`]
+        : []
+    )
+    const candidates = sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : [])
+
+    if (sources.length > 0 && sourceErrors.length === sources.length) {
+      throw new Error(sourceErrors.join("; "))
+    }
+
     await queueCandidates(admin, integration, candidates)
     const processed = await processQueuedEntries(admin, integration)
-    await admin.from("substack_integrations").update({ status: "active", last_synced_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() }).eq("id", integration.id)
+    await admin.from("substack_integrations").update({
+      status: "active",
+      last_synced_at: new Date().toISOString(),
+      last_error: sourceErrors.join("; ") || null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", integration.id)
     return { discovered: candidates.length, processed }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown sync failure"
