@@ -1,0 +1,7 @@
+allowBuilds:
+  '@google/genai': set this to true or false
+  protobufjs: set this to true or false
+overrides:
+  baseline-browser-mapping: 2.11.0
+  protobufjs: 7.6.5
+  source-map-js: 1.2.2
